@@ -1,0 +1,73 @@
+[
+  {
+    "resume_id": "resume_local_001",
+    "full_name": "Bekzat U.",
+    "headline": "Machine Learning Engineer",
+    "skills_text": "Python, scikit-learn, PyTorch, FastAPI, Airflow, Docker, Feature Engineering, Model Monitoring",
+    "resume_text": "Machine Learning Engineer with 5 years building forecasting and classification services. Converted notebooks into FastAPI services, engineered features, automated retraining with Airflow, and monitored production model quality."
+  },
+  {
+    "resume_id": "resume_local_002",
+    "full_name": "Laura M.",
+    "headline": "MLOps Engineer",
+    "skills_text": "Kubeflow, MLflow, Prometheus, Docker, Kubernetes, AWS, Python, Airflow",
+    "resume_text": "MLOps Engineer with 6 years operating production ML platforms. Built deployment workflows with Docker and Kubernetes, handled model registry with MLflow, and monitored drift and latency using Prometheus."
+  },
+  {
+    "resume_id": "resume_local_003",
+    "full_name": "Tomiris A.",
+    "headline": "AI Research Engineer",
+    "skills_text": "Python, PyTorch, TensorFlow, CUDA, Jupyter, NumPy, Experimentation",
+    "resume_text": "AI Research Engineer with 7 years of deep learning experimentation. Benchmarked model architectures in PyTorch and TensorFlow, reviewed literature, and collaborated on prototype-to-product transitions."
+  },
+  {
+    "resume_id": "resume_local_004",
+    "full_name": "Nursultan B.",
+    "headline": "Software Engineer (Backend)",
+    "skills_text": "Python, Java, PostgreSQL, REST APIs, Docker, CI/CD, Unit Testing",
+    "resume_text": "Backend Software Engineer with 5 years developing REST APIs and internal services. Built Python and Java services, optimized PostgreSQL queries, and maintained CI/CD. Limited direct model development experience."
+  },
+  {
+    "resume_id": "resume_local_005",
+    "full_name": "Aigerim S.",
+    "headline": "Cloud Engineer",
+    "skills_text": "AWS, Azure, Terraform, Docker, Kubernetes, Linux, Python, IAM",
+    "resume_text": "Cloud Engineer with 6 years of infrastructure and migration work across AWS and Azure. Built Terraform modules, improved IAM controls, and automated operations with Python."
+  },
+  {
+    "resume_id": "resume_local_006",
+    "full_name": "Anuar T.",
+    "headline": "NLP Engineer",
+    "skills_text": "Python, Transformers, spaCy, FastAPI, Docker, PyTorch, Text Classification",
+    "resume_text": "NLP Engineer with 4 years building text classification and extraction pipelines. Deployed inference APIs with FastAPI and Docker and fine-tuned transformer models in PyTorch."
+  },
+  {
+    "resume_id": "resume_local_007",
+    "full_name": "Asel N.",
+    "headline": "Junior Data Scientist",
+    "skills_text": "Python, SQL, pandas, scikit-learn, Tableau, Statistics",
+    "resume_text": "Junior Data Scientist with 2 years of internship and entry-level analytics work. Built baseline scikit-learn models, prepared datasets in pandas and SQL, and supported dashboard reporting."
+  },
+  {
+    "resume_id": "resume_local_008",
+    "full_name": "Rustam D.",
+    "headline": "Data Engineer",
+    "skills_text": "SQL, Spark, Kafka, AWS, Airflow, Data Modeling, ETL",
+    "resume_text": "Data Engineer with 8 years building ingestion pipelines and warehouse models. Worked with Spark and Kafka on AWS, improved data quality checks, and maintained Airflow orchestration."
+  },
+  {
+    "resume_id": "resume_local_009",
+    "full_name": "Madina K.",
+    "headline": "Product Data Analyst",
+    "skills_text": "SQL, Tableau, Mixpanel, Amplitude, Excel, Python",
+    "resume_text": "Product Data Analyst with 4 years of funnel analysis and retention reporting. Built product dashboards in Tableau and used SQL with Mixpanel and Amplitude to support roadmap decisions."
+  },
+  {
+    "resume_id": "resume_local_010",
+    "full_name": "Amina V.",
+    "headline": "Backend Developer (Node.js)",
+    "skills_text": "Node.js, Express, MongoDB, Docker, REST APIs",
+    "resume_text": "Backend Developer with 3 years building service APIs in Node.js and Express. Focused on MongoDB applications and internal tooling, with minimal ML or analytics responsibilities."
+  }
+]
+

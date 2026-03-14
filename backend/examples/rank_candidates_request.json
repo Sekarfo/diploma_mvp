@@ -1,0 +1,24 @@
+{
+  "job_id": "job_123",
+  "candidates": [
+    {
+      "resume_id": "resume_1",
+      "bm25_score": 12.3,
+      "normalized_bm25_score": 0.81,
+      "exact_skill_overlap_count": 7,
+      "exact_skill_overlap_ratio": 0.54,
+      "title_token_overlap_ratio": 0.67,
+      "years_experience_estimate": 3
+    },
+    {
+      "resume_id": "resume_2",
+      "bm25_score": 10.8,
+      "normalized_bm25_score": 0.72,
+      "exact_skill_overlap_count": 5,
+      "exact_skill_overlap_ratio": 0.42,
+      "title_token_overlap_ratio": 0.61,
+      "years_experience_estimate": 2
+    }
+  ]
+}
+

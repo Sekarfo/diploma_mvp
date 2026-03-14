@@ -1,0 +1,7 @@
+{
+  "job_id": "job_demo_001",
+  "job_title": "Machine Learning Engineer",
+  "job_description": "Build forecasting models and deploy them as maintainable services. We use Python, scikit-learn, PyTorch, FastAPI, Airflow, Docker, and strong feature engineering practices.",
+  "top_k": 5
+}
+

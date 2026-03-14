@@ -1,0 +1,50 @@
+# Python caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+
+# Tool caches
+.uv-cache/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local runtime outputs
+*.log
+*.tmp
+
+# Model and generated artifacts
+models/metrics/
+models/*.json
+!models/ranker_model.json
+!models/ranker_metadata.json
+
+# Generated datasets / predictions
+data/labels/labeled_pairs_first*.csv
+data/labels/*_smoke.csv
+validation_predictions.csv
+cv_predictions.csv
+feature_importance.csv
+fold_metrics.csv
+group_analysis.csv
+ranker_metadata.json
+ranker_model.json
