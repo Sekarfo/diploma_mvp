@@ -48,9 +48,6 @@ const vacancyDescriptionInput = document.getElementById("vacancy-description");
 const vacancyYearsInput = document.getElementById("vacancy-years");
 const vacancySkillsInput = document.getElementById("vacancy-skills");
 
-const statsJobsEl = document.getElementById("stats-jobs");
-const statsResumesEl = document.getElementById("stats-resumes");
-
 const resultsMetaEl = document.getElementById("results-meta");
 const resultsEl = document.getElementById("results");
 const candidateTemplate = document.getElementById("candidate-template");
@@ -160,7 +157,7 @@ function applyAuthGate() {
 
   if (isAuthenticated) {
     applyUserToUi();
-    setAppStatus("Welcome. Select a page to continue.", "ok");
+    setAppStatus("Welcome! Start by creating a shortlist.", "ok");
   } else {
     setAuthStatus("Use your HR credentials to continue.", "");
     setAppStatus("");
@@ -236,14 +233,10 @@ function closeResumeModal() {
 }
 
 function updateResultsMeta(payload, extra = "") {
-  const requestedTopK = payload.requested_top_k ?? payload.top_k;
-  const requestedPool = payload.requested_num_candidates ?? payload.num_candidates;
   const text = [
     `Vacancy: ${payload.job_id || payload.vacancy_title || "custom"}`,
-    `Retrieved: ${payload.retrieved_count ?? "-"}`,
-    `Ranked: ${payload.total_candidates ?? payload.returned_count ?? "-"}`,
-    `Top K used: ${payload.top_k ?? "-"} (requested ${requestedTopK ?? "-"})`,
-    `Pool used: ${payload.num_candidates ?? "-"} (requested ${requestedPool ?? "-"})`,
+    `Candidates shown: ${payload.total_candidates ?? payload.returned_count ?? "-"}`,
+    `Top results: ${payload.top_k ?? "-"}`,
     extra,
   ]
     .filter(Boolean)
@@ -270,16 +263,15 @@ function buildCandidateSummary(candidate) {
 
 function renderCandidateDetails(candidate) {
   const explanation = candidate.explanation || {};
+  const matched = (explanation.matched_skills || []).slice(0, 5);
+  const missing = (explanation.missing_skills || []).slice(0, 4);
   const positives = (explanation.top_positive_factors || []).slice(0, 3).map((item) => item.label).filter(Boolean);
-  const negatives = (explanation.top_negative_factors || []).slice(0, 3).map((item) => item.label).filter(Boolean);
 
   return `
-    <div class="detail-item"><span>Retrieval rank</span><b>${escapeHtml(candidate.retrieval_rank ?? "-")}</b></div>
-    <div class="detail-item"><span>Skill overlap</span><b>${escapeHtml(candidate.skill_overlap_count ?? 0)} (${escapeHtml(fmt(candidate.skill_overlap_ratio, 2))})</b></div>
-    <div class="detail-item"><span>Title overlap</span><b>${escapeHtml(fmt(candidate.title_overlap_ratio, 2))}</b></div>
-    <div class="detail-item"><span>Experience gap</span><b>${escapeHtml(fmt(candidate.years_gap, 2))}</b></div>
-    <div class="detail-item detail-full"><span>Top positive drivers</span><b>${escapeHtml(positives.join(", ") || "Not enough data")}</b></div>
-    <div class="detail-item detail-full"><span>Top negative drivers</span><b>${escapeHtml(negatives.join(", ") || "Not enough data")}</b></div>
+    <div class="detail-item"><span>Matched skills</span><b>${escapeHtml(matched.join(", ") || "Not enough data")}</b></div>
+    <div class="detail-item"><span>Missing skills</span><b>${escapeHtml(missing.join(", ") || "None highlighted")}</b></div>
+    <div class="detail-item"><span>Experience fit</span><b>${escapeHtml(explanation.experience_summary || "Review resume for full context")}</b></div>
+    <div class="detail-item"><span>Why recommended</span><b>${escapeHtml(positives.join(", ") || "Strong overall relevance")}</b></div>
   `;
 }
 
@@ -301,8 +293,6 @@ function renderCandidates(payload) {
     node.querySelector(".rank-pill").textContent = `Rank #${candidate.final_rank}`;
     node.querySelector(".resume-id").textContent = candidate.resume_id;
     node.querySelector(".score-fused").textContent = fmt(fusedScore, 4);
-    node.querySelector(".score-retrieval").textContent = fmt(candidate.retrieval_score_norm, 4);
-    node.querySelector(".score-reranker").textContent = fmt(candidate.reranker_score_norm, 4);
     node.querySelector(".candidate-summary").textContent = buildCandidateSummary(candidate);
 
     const detailsEl = node.querySelector(".details-grid");
@@ -380,8 +370,7 @@ function renderHistoryList(runs) {
         <button type="button" class="chip-btn open-history-btn">Open</button>
       </div>
       <p>${escapeHtml(humanDate(run.created_at))}</p>
-      <p>Ranked candidates: <b>${escapeHtml(run.returned_count)}</b></p>
-      <p>Top K: <b>${escapeHtml(run.top_k)}</b> | Candidate pool: <b>${escapeHtml(run.num_candidates)}</b></p>
+      <p>Candidates shown: <b>${escapeHtml(run.returned_count)}</b></p>
     `;
 
     const button = item.querySelector(".open-history-btn");
@@ -410,8 +399,6 @@ function renderVacancyList(vacancies) {
         <span class="mini-badge">${escapeHtml(vacancy.source || "manual")}</span>
       </div>
       <p>Created: <b>${escapeHtml(humanDate(vacancy.created_at))}</b></p>
-      <p>Years required: <b>${escapeHtml(fmt(vacancy.years_required, 1))}</b></p>
-      <p>Shortlists run: <b>${escapeHtml(vacancy.runs_count)}</b></p>
       <p>${escapeHtml(vacancy.description_preview || "No description preview")}</p>
     `;
     fragment.appendChild(item);
@@ -440,7 +427,7 @@ function renderGlobalExplanation(payload) {
     .join("");
 
   globalShapListEl.innerHTML = rows || "<p class='mini-muted'>No SHAP summary available yet.</p>";
-  globalExplainerMetaEl.textContent = `Validation rows: ${payload.validation_rows ?? 0}, jobs: ${payload.validation_jobs ?? 0}`;
+  globalExplainerMetaEl.textContent = `Based on ${payload.validation_rows ?? 0} validation rows`;
 
   const glossary = (payload.feature_glossary || [])
     .map((item) => {
@@ -470,12 +457,6 @@ async function loadJobs() {
     option.textContent = `${job.job_title} (${job.job_id})`;
     jobSelect.appendChild(option);
   });
-}
-
-async function loadStats() {
-  const data = await apiGet("/stats", { authRequired: true });
-  statsJobsEl.textContent = String(data.total_jobs ?? "-");
-  statsResumesEl.textContent = String(data.total_resumes ?? "-");
 }
 
 async function loadVacancies() {
@@ -518,7 +499,7 @@ async function refreshMe() {
 async function loadAppData() {
   try {
     setAppStatus("Loading workspace data...", "ok");
-    await Promise.all([loadJobs(), loadStats(), loadGlobalExplanation(), loadVacancies(), loadHistory()]);
+    await Promise.all([loadJobs(), loadGlobalExplanation(), loadVacancies(), loadHistory()]);
     setAppStatus("Workspace is ready.", "ok");
   } catch (error) {
     setAppStatus(error.message || "Failed to load workspace data.", "error");

@@ -78,7 +78,7 @@
       <nav class="app-nav">
         <button id="page-shortlist-btn" type="button" class="nav-btn active">Shortlist Candidates</button>
         <button id="page-profile-btn" type="button" class="nav-btn">My Profile</button>
-        <button id="page-insights-btn" type="button" class="nav-btn">Model Insights (SHAP)</button>
+        <button id="page-insights-btn" type="button" class="nav-btn">Insights</button>
       </nav>
 
       <p id="app-status" class="status"></p>
@@ -89,10 +89,6 @@
             <article class="panel control-panel">
               <div class="section-head">
                 <h3>Create Shortlist</h3>
-                <div id="dataset-stats" class="dataset-stats">
-                  <p class="stat-chip">Jobs: <span id="stats-jobs">-</span></p>
-                  <p class="stat-chip">Resumes: <span id="stats-resumes">-</span></p>
-                </div>
               </div>
 
               <div class="mode-toggle">
@@ -157,10 +153,6 @@
                 <p id="results-meta" class="mini-muted">Build a shortlist to see ranked candidates.</p>
               </div>
 
-              <p class="formula-note">
-                Final fused relevance score = 0.3 x normalized retrieval score + 0.7 x normalized reranker score
-              </p>
-
               <div id="results" class="candidate-list empty-state">
                 <p>No shortlist yet.</p>
               </div>
@@ -206,7 +198,7 @@
         <section id="page-insights" class="page hidden">
           <article class="panel insights-panel">
             <div class="section-head">
-              <h3>How To Read SHAP (For HR Team)</h3>
+              <h3>How to Read Insights</h3>
             </div>
             <div class="insight-cards">
               <article class="insight-card">
@@ -230,7 +222,7 @@
             </div>
 
             <div class="section-head">
-              <h3>Global Model Explanation (Validation SHAP)</h3>
+              <h3>Top Ranking Factors</h3>
               <p id="global-explainer-meta" class="mini-muted">Loading SHAP summary...</p>
             </div>
 
@@ -257,16 +249,8 @@
 
         <div class="score-grid">
           <div class="score-chip main">
-            <span>Final Fused Relevance</span>
+            <span>Overall Match Score</span>
             <b class="score-fused">-</b>
-          </div>
-          <div class="score-chip">
-            <span>Normalized Retrieval</span>
-            <b class="score-retrieval">-</b>
-          </div>
-          <div class="score-chip">
-            <span>Normalized Reranker</span>
-            <b class="score-reranker">-</b>
           </div>
         </div>
 

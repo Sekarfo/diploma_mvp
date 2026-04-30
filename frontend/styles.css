@@ -1,15 +1,15 @@
 :root {
-  --bg-a: #f1eee8;
-  --bg-b: #f7f5ef;
-  --bg-c: #d7e6de;
-  --ink: #1d2b2a;
-  --ink-soft: #4f6260;
-  --line: #d2dfdb;
-  --panel: rgba(255, 255, 255, 0.84);
-  --accent: #1f8f7a;
-  --accent-strong: #1a5f53;
-  --warn: #a53c2f;
-  --shadow: 0 20px 44px rgba(23, 53, 47, 0.14);
+  --bg-a: #f3f7ff;
+  --bg-b: #eef7f4;
+  --bg-c: #ddeee8;
+  --ink: #1d2a3a;
+  --ink-soft: #5f6f82;
+  --line: #d4e0ed;
+  --panel: rgba(255, 255, 255, 0.9);
+  --accent: #2f7de1;
+  --accent-strong: #285eb4;
+  --warn: #b4433d;
+  --shadow: 0 18px 40px rgba(37, 74, 126, 0.12);
 }
 
 * {
@@ -33,9 +33,9 @@ body {
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(circle at 12% 15%, rgba(31, 143, 122, 0.18), transparent 44%),
-    radial-gradient(circle at 80% 18%, rgba(239, 125, 67, 0.15), transparent 42%),
-    radial-gradient(circle at 72% 84%, rgba(103, 164, 131, 0.16), transparent 46%),
+    radial-gradient(circle at 12% 15%, rgba(47, 125, 225, 0.18), transparent 44%),
+    radial-gradient(circle at 84% 22%, rgba(67, 184, 151, 0.14), transparent 42%),
+    radial-gradient(circle at 72% 84%, rgba(143, 176, 232, 0.15), transparent 46%),
     linear-gradient(130deg, var(--bg-b), var(--bg-c));
 }
 
@@ -164,14 +164,14 @@ body {
   font: inherit;
   font-weight: 700;
   color: #fff;
-  background: linear-gradient(120deg, var(--accent), #3e8fbe);
+  background: linear-gradient(120deg, var(--accent), #48a88b);
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
 .action-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(34, 136, 127, 0.28);
+  box-shadow: 0 10px 22px rgba(47, 125, 225, 0.28);
 }
 
 .mini-muted {
@@ -220,10 +220,10 @@ body {
 }
 
 .user-pill {
-  border: 1px solid #cfe0dc;
+  border: 1px solid #d5e4f3;
   border-radius: 999px;
   padding: 7px 12px;
-  background: #edf6f3;
+  background: #eff6ff;
   display: grid;
   gap: 1px;
   min-width: 210px;
@@ -264,7 +264,7 @@ body {
 .nav-btn.active {
   border-color: transparent;
   color: #fff;
-  background: linear-gradient(120deg, #19453f, #23605a);
+  background: linear-gradient(120deg, #2e5fb2, #2f7de1);
 }
 
 .status {
@@ -274,7 +274,7 @@ body {
 }
 
 .status.ok {
-  color: #1f7a63;
+  color: #286ec9;
 }
 
 .status.error {
@@ -334,33 +334,6 @@ body {
   margin-bottom: 12px;
 }
 
-.dataset-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.stat-chip {
-  margin: 0;
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: #ecf6f3;
-  color: #184942;
-  border: 1px solid #cfe2dd;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.formula-note {
-  margin: 0 0 10px;
-  border: 1px dashed #cbded9;
-  border-radius: 10px;
-  background: #f6fbf9;
-  padding: 8px 9px;
-  color: #355a54;
-  font-size: 0.85rem;
-}
-
 .candidate-list {
   display: grid;
   gap: 10px;
@@ -394,7 +367,7 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: linear-gradient(120deg, #124e44, #1f8f7a);
+  background: linear-gradient(120deg, #285eb4, #2f7de1);
   color: #ffffff;
   font-size: 0.8rem;
   font-weight: 700;
@@ -402,7 +375,7 @@ body {
   padding: 8px 16px;
   min-width: 110px;
   font-size: 1rem;
-  box-shadow: 0 8px 18px rgba(20, 90, 79, 0.28);
+  box-shadow: 0 8px 18px rgba(40, 94, 180, 0.25);
 }
 
 .resume-id {
@@ -411,10 +384,10 @@ body {
 }
 
 .view-resume-btn {
-  border: 1px solid #b5cbc6;
+  border: 1px solid #bfd1ea;
   border-radius: 10px;
   background: #fff;
-  color: #1f5951;
+  color: #2d5fae;
   padding: 6px 10px;
   font: inherit;
   font-weight: 600;
@@ -422,13 +395,13 @@ body {
 }
 
 .view-resume-btn:hover {
-  background: #f2f9f7;
+  background: #f3f8ff;
 }
 
 .score-grid {
   display: grid;
   gap: 8px;
-  grid-template-columns: 1.2fr 1fr 1fr;
+  grid-template-columns: 1fr;
   margin-top: 10px;
 }
 
@@ -442,8 +415,8 @@ body {
 }
 
 .score-chip.main {
-  border-color: #9bcfbe;
-  background: linear-gradient(120deg, rgba(31, 143, 122, 0.12), rgba(239, 125, 67, 0.1));
+  border-color: #b8d1f3;
+  background: linear-gradient(120deg, rgba(47, 125, 225, 0.13), rgba(72, 168, 139, 0.1));
 }
 
 .score-chip span {
@@ -458,7 +431,7 @@ body {
 
 .candidate-summary {
   margin: 10px 0 0;
-  color: #35514d;
+  color: #465b74;
 }
 
 .candidate-more {
@@ -472,7 +445,7 @@ body {
 .candidate-more summary {
   cursor: pointer;
   font-weight: 700;
-  color: #234a44;
+  color: #2f5ea8;
 }
 
 .details-grid {
@@ -492,12 +465,12 @@ body {
 }
 
 .detail-item span {
-  color: #556b68;
+  color: #5a6f88;
   font-size: 0.78rem;
 }
 
 .detail-item b {
-  color: #25423e;
+  color: #2c405a;
   font-size: 0.85rem;
 }
 
@@ -551,13 +524,13 @@ body {
 
 .mini-badge {
   display: inline-block;
-  border: 1px solid #cfe0dc;
+  border: 1px solid #d4e2f3;
   border-radius: 999px;
   padding: 2px 7px;
   font-size: 0.72rem;
   font-weight: 700;
-  color: #205f53;
-  background: #edf7f4;
+  color: #2f5fa9;
+  background: #eff6ff;
 }
 
 .insights-panel {
@@ -631,7 +604,7 @@ body {
 .global-shap-bar span {
   display: block;
   height: 100%;
-  background: linear-gradient(120deg, #1f8f7a, #ef7d43);
+  background: linear-gradient(120deg, #2f7de1, #48a88b);
 }
 
 .global-shap-meta {
