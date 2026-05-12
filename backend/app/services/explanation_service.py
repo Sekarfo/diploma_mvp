@@ -4,8 +4,33 @@ from typing import Any
 
 import pandas as pd
 
+from src.ml.config import FEATURE_COLUMNS
+
 
 FEATURE_META: dict[str, dict[str, Any]] = {
+    "ce_score": {
+        "label": "Cross-Encoder Semantic Score",
+        "description": (
+            "Transformer-based reranker score in [0, 1]. Reads job and resume text "
+            "jointly and captures contextual relevance beyond skill keywords."
+        ),
+        "used_in_model": True,
+    },
+    "ce_score_x_emb": {
+        "label": "Cross-Encoder x Embedding",
+        "description": "Interaction of cross-encoder score with embedding cosine similarity.",
+        "used_in_model": True,
+    },
+    "ce_score_zscore_in_job": {
+        "label": "Cross-Encoder (Per-Job Z-Score)",
+        "description": "Cross-encoder score standardized within the candidate pool for this vacancy.",
+        "used_in_model": True,
+    },
+    "ce_score_rank_in_job": {
+        "label": "Cross-Encoder Rank in Job",
+        "description": "Position of candidate among retrieved hits by cross-encoder score, 1 = highest.",
+        "used_in_model": True,
+    },
     "embedding_cosine": {
         "label": "Semantic Similarity (Cosine)",
         "description": "Cosine similarity between job and resume embeddings. Higher means semantically closer text.",
@@ -56,6 +81,51 @@ FEATURE_META: dict[str, dict[str, Any]] = {
         "description": "Stage-1 retrieval position before reranking. Lower is better.",
         "used_in_model": True,
     },
+    "log_retrieval_rank": {
+        "label": "Log Retrieval Rank",
+        "description": "log(1 + retrieval rank). Compresses the long tail of retrieval positions.",
+        "used_in_model": True,
+    },
+    "abs_years_gap": {
+        "label": "|Experience Gap|",
+        "description": "Absolute distance in years between candidate and required experience.",
+        "used_in_model": True,
+    },
+    "skill_overlap_x_emb": {
+        "label": "Skill x Semantic Similarity",
+        "description": "Interaction of skill overlap ratio with normalized cosine similarity.",
+        "used_in_model": True,
+    },
+    "experience_x_skill": {
+        "label": "Experience x Skill",
+        "description": "Interaction of experience match flag with skill overlap ratio.",
+        "used_in_model": True,
+    },
+    "title_x_emb": {
+        "label": "Title x Semantic Similarity",
+        "description": "Interaction of title token overlap with normalized cosine similarity.",
+        "used_in_model": True,
+    },
+    "embedding_cosine_zscore_in_job": {
+        "label": "Semantic Similarity (Per-Job Z-Score)",
+        "description": "Standardized cosine relative to the other candidates retrieved for this vacancy.",
+        "used_in_model": True,
+    },
+    "skill_overlap_ratio_zscore_in_job": {
+        "label": "Skill Overlap (Per-Job Z-Score)",
+        "description": "Standardized skill overlap relative to other candidates for this vacancy.",
+        "used_in_model": True,
+    },
+    "title_overlap_ratio_zscore_in_job": {
+        "label": "Title Overlap (Per-Job Z-Score)",
+        "description": "Standardized title overlap relative to other candidates for this vacancy.",
+        "used_in_model": True,
+    },
+    "embedding_cosine_rank_in_job": {
+        "label": "Semantic Similarity Rank in Job",
+        "description": "Position of candidate among retrieved hits by raw cosine, 1 = highest.",
+        "used_in_model": True,
+    },
     "missing_skills_count": {
         "label": "Missing Skills Count",
         "description": "How many required skills are missing in resume. Used for interpretation panel only.",
@@ -73,18 +143,7 @@ FEATURE_META: dict[str, dict[str, Any]] = {
     },
 }
 
-MODEL_FEATURE_ORDER = [
-    "embedding_cosine",
-    "embedding_cosine_norm",
-    "skill_overlap_count",
-    "skill_overlap_ratio",
-    "title_overlap_ratio",
-    "resume_years_experience",
-    "job_years_required",
-    "years_gap",
-    "experience_match_flag",
-    "retrieval_rank",
-]
+MODEL_FEATURE_ORDER = list(FEATURE_COLUMNS)
 
 RAW_FEATURE_ORDER = MODEL_FEATURE_ORDER + [
     "missing_skills_count",

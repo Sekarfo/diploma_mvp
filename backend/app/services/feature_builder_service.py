@@ -8,10 +8,15 @@ import pandas as pd
 from backend.app.services.artifact_service import RuntimeArtifacts
 from backend.app.services.errors import RankingError
 from backend.app.services.runtime_utils import parse_list_col, title_overlap_ratio, to_float
+from src.ml.features import engineer_features
 
 
 class FeatureBuilderService:
-    """Builds runtime ranker features that match training schema exactly."""
+    """Builds runtime ranker features that match training schema exactly.
+
+    Cross-encoder is used only OFFLINE for label generation (data/generate_labels.py).
+    Inference path is structured-features-only: ES retrieve -> LightGBM rank.
+    """
 
     def build_features_for_hits(
         self,
@@ -25,6 +30,7 @@ class FeatureBuilderService:
         rows: list[dict[str, Any]] = []
         missing_resume_ids: list[str] = []
 
+        job_id = str(job_row["job_id"])
         job_skills = set(parse_list_col(job_row.get("job_skills_norm", [])))
         job_years_required = to_float(job_row.get("job_years_required", 0.0), default=0.0)
         job_title = str(job_row.get("job_title", ""))
@@ -67,7 +73,6 @@ class FeatureBuilderService:
             skill_overlap_ratio = float(skill_overlap_count / max(len(job_skills), 1))
             years_gap = float(resume_years_experience - job_years_required)
             experience_match_flag = 1 if years_gap >= 0 else 0
-            embedding_cosine_norm = float(np.clip((embedding_cosine + 1.0) / 2.0, 0.0, 1.0))
             current_title_overlap = title_overlap_ratio(job_title, resume_titles)
 
             matched_skills = sorted(job_skills & resume_skills)
@@ -79,7 +84,7 @@ class FeatureBuilderService:
 
             rows.append(
                 {
-                    "job_id": str(job_row["job_id"]),
+                    "job_id": job_id,
                     "resume_id": resume_id,
                     "resume_text": resume_text,
                     "retrieval_rank": retrieval_rank,
@@ -87,7 +92,6 @@ class FeatureBuilderService:
                     "retrieval_score_raw": elastic_score,
                     "embedding_source": embedding_source,
                     "embedding_cosine": embedding_cosine,
-                    "embedding_cosine_norm": embedding_cosine_norm,
                     "skill_overlap_count": skill_overlap_count,
                     "skill_overlap_ratio": skill_overlap_ratio,
                     "title_overlap_ratio": current_title_overlap,
@@ -110,4 +114,9 @@ class FeatureBuilderService:
                 f"{missing_preview}"
             )
 
-        return pd.DataFrame(rows)
+        if not rows:
+            return pd.DataFrame(rows)
+
+        base_df = pd.DataFrame(rows)
+        engineered_df = engineer_features(base_df)
+        return engineered_df

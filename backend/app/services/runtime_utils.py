@@ -8,6 +8,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from src.embeddings.schemas import (
+    normalize_jobs_dataframe as _normalize_jobs_dataframe,
+    normalize_resumes_dataframe as _normalize_resumes_dataframe,
+)
+
 LIST_ITEM_PATTERN = re.compile(r"'([^']*)'|\"([^\"]*)\"")
 
 
@@ -136,45 +141,11 @@ def find_first_existing(candidates: tuple[Path, ...], label: str) -> Path:
 
 
 def normalize_jobs_df(df: pd.DataFrame) -> pd.DataFrame:
-    if "job_id" not in df.columns:
-        raise ValueError("jobs dataset is missing required column: job_id")
-
-    if "job_title" not in df.columns:
-        df["job_title"] = ""
-    if "job_description" not in df.columns:
-        df["job_description"] = ""
-    if "job_skills_norm" not in df.columns:
-        df["job_skills_norm"] = [[] for _ in range(len(df))]
-    if "job_years_required" not in df.columns:
-        df["job_years_required"] = 0.0
-
-    df["job_id"] = df["job_id"].astype(str)
-    df["job_title"] = df["job_title"].fillna("").astype(str)
-    df["job_description"] = df["job_description"].fillna("").astype(str)
-    df["job_skills_norm"] = df["job_skills_norm"].apply(parse_list_col)
-    df["job_years_required"] = pd.to_numeric(df["job_years_required"], errors="coerce").fillna(0.0)
-    return df
+    return _normalize_jobs_dataframe(df)
 
 
 def normalize_resumes_df(df: pd.DataFrame) -> pd.DataFrame:
-    if "resume_id" not in df.columns:
-        raise ValueError("resumes dataset is missing required column: resume_id")
-
-    if "resume_text" not in df.columns:
-        df["resume_text"] = ""
-    if "resume_skills_norm" not in df.columns:
-        df["resume_skills_norm"] = [[] for _ in range(len(df))]
-    if "resume_titles_norm" not in df.columns:
-        df["resume_titles_norm"] = [[] for _ in range(len(df))]
-    if "resume_years_experience" not in df.columns:
-        df["resume_years_experience"] = 0.0
-
-    df["resume_id"] = df["resume_id"].astype(str)
-    df["resume_text"] = df["resume_text"].fillna("").astype(str)
-    df["resume_skills_norm"] = df["resume_skills_norm"].apply(parse_list_col)
-    df["resume_titles_norm"] = df["resume_titles_norm"].apply(parse_list_col)
-    df["resume_years_experience"] = pd.to_numeric(df["resume_years_experience"], errors="coerce").fillna(0.0)
-    return df
+    return _normalize_resumes_dataframe(df)
 
 
 def build_index_map(df: pd.DataFrame, id_col: str, label: str) -> dict[str, int]:

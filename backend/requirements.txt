@@ -1,9 +1,15 @@
 fastapi>=0.110.0
-uvicorn>=0.29.0
+uvicorn[standard]>=0.29.0
 pydantic>=2.6.0
 pandas>=2.2.0
 numpy>=1.26.0
 joblib>=1.3.0
-xgboost>=2.0.0
+lightgbm>=4.3.0
+scikit-learn>=1.4.0
 elasticsearch>=8.12.0
 psycopg[binary]>=3.2.0
+pyarrow>=15.0.0
+# Three-stage rerank pipeline: cross-encoder for runtime feature.
+torch>=2.2.0
+transformers>=4.40.0
+sentence-transformers>=2.7.0

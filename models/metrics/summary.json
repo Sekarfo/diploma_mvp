@@ -1,156 +1,52 @@
 {
-  "train_jobs": 8,
-  "train_rows": 600,
-  "train_label_distribution": {
-    "0": 12,
-    "1": 531,
-    "2": 57
+  "model_path": "C:\\Users\\trudk\\OneDrive\\Desktop\\diploma-recruitment-mvp\\models\\lgbm_ranker.joblib",
+  "features_path": "C:\\Users\\trudk\\OneDrive\\Desktop\\diploma-recruitment-mvp\\models\\ranker_features.joblib",
+  "valid_metrics": {
+    "ndcg@5": 0.9286385668092777,
+    "precision@5": 0.9612903225806452,
+    "recall@5": 0.17908897464660112,
+    "ndcg@10": 0.9094557698673184,
+    "precision@10": 0.9274193548387095,
+    "recall@10": 0.3271435738885191,
+    "ndcg@15": 0.8956825771254189,
+    "precision@15": 0.8935483870967741,
+    "recall@15": 0.45231524593109795,
+    "ndcg@20": 0.8971970338673576,
+    "precision@20": 0.8725806451612903,
+    "recall@20": 0.5734023038578032,
+    "map": 0.9159406924530862,
+    "mrr": 0.9892473118279569,
+    "num_query_groups": 62,
+    "num_rows": 3100
   },
-  "validation_jobs": 3,
-  "validation_rows": 234,
-  "validation_label_distribution": {
-    "0": 3,
-    "1": 205,
-    "2": 26
+  "test_metrics": {
+    "ndcg@5": 0.9108888318063144,
+    "precision@5": 0.932258064516129,
+    "recall@5": 0.21049144008793771,
+    "ndcg@10": 0.8941216902355227,
+    "precision@10": 0.8693548387096774,
+    "recall@10": 0.3508720138202685,
+    "ndcg@15": 0.8968551882184997,
+    "precision@15": 0.8462365591397849,
+    "recall@15": 0.48774732965916234,
+    "ndcg@20": 0.8979144084970789,
+    "precision@20": 0.8201612903225808,
+    "recall@20": 0.6051223629975381,
+    "map": 0.8881916442928147,
+    "mrr": 0.9838709677419355,
+    "num_query_groups": 62,
+    "num_rows": 3100
   },
-  "model_metrics_mean": {
-    "ndcg_at_5": 0.9473919245867476,
-    "map_at_5": 1.0,
-    "mrr_at_5": 1.0,
-    "precision_at_5": 1.0,
-    "recall_at_5": 0.06511837304520231,
-    "map_label_ge_2_at_5": 0.84,
-    "mrr_label_ge_2_at_5": 1.0,
-    "precision_label_ge_2_at_5": 0.6,
-    "recall_label_ge_2_at_5": 0.5687830687830688,
-    "ndcg_at_10": 0.9475697419552614,
-    "map_at_10": 1.0,
-    "mrr_at_10": 1.0,
-    "precision_at_10": 1.0,
-    "recall_at_10": 0.13023674609040461,
-    "map_label_ge_2_at_10": 0.817687074829932,
-    "mrr_label_ge_2_at_10": 1.0,
-    "precision_label_ge_2_at_10": 0.5,
-    "recall_label_ge_2_at_10": 0.708994708994709,
-    "ndcg_at_20": 0.9846647026273017,
-    "map_at_20": 1.0,
-    "mrr_at_20": 1.0,
-    "precision_at_20": 1.0,
-    "recall_at_20": 0.26047349218080923,
-    "map_label_ge_2_at_20": 0.8840704856577872,
-    "mrr_label_ge_2_at_20": 1.0,
-    "precision_label_ge_2_at_20": 0.43333333333333335,
-    "recall_label_ge_2_at_20": 1.0
-  },
-  "baseline_metrics_mean": {
-    "ndcg_at_5": 0.7842271230431516,
-    "map_at_5": 1.0,
-    "mrr_at_5": 1.0,
-    "precision_at_5": 1.0,
-    "recall_at_5": 0.06511837304520231,
-    "map_label_ge_2_at_5": 0.3666666666666667,
-    "mrr_label_ge_2_at_5": 0.8333333333333334,
-    "precision_label_ge_2_at_5": 0.26666666666666666,
-    "recall_label_ge_2_at_5": 0.41798941798941797,
-    "ndcg_at_10": 0.7998255051066304,
-    "map_at_10": 1.0,
-    "mrr_at_10": 1.0,
-    "precision_at_10": 1.0,
-    "recall_at_10": 0.13023674609040461,
-    "map_label_ge_2_at_10": 0.3351851851851852,
-    "mrr_label_ge_2_at_10": 0.8333333333333334,
-    "precision_label_ge_2_at_10": 0.2333333333333333,
-    "recall_label_ge_2_at_10": 0.4735449735449735,
-    "ndcg_at_20": 0.8287133647834352,
-    "map_at_20": 1.0,
-    "mrr_at_20": 1.0,
-    "precision_at_20": 1.0,
-    "recall_at_20": 0.26047349218080923,
-    "map_label_ge_2_at_20": 0.30942226497782055,
-    "mrr_label_ge_2_at_20": 0.8333333333333334,
-    "precision_label_ge_2_at_20": 0.16666666666666666,
-    "recall_label_ge_2_at_20": 0.5873015873015873
-  },
-  "stage1_retrieval_metrics_mean": {
-    "recall_at_5": 0.06511837304520231,
-    "has_relevant_rate_at_5": 1.0,
-    "recall_label_ge_2_at_5": 0.41798941798941797,
-    "has_relevant_rate_label_ge_2_at_5": 1.0,
-    "recall_at_10": 0.13023674609040461,
-    "has_relevant_rate_at_10": 1.0,
-    "recall_label_ge_2_at_10": 0.4735449735449735,
-    "has_relevant_rate_label_ge_2_at_10": 1.0,
-    "recall_at_20": 0.26047349218080923,
-    "has_relevant_rate_at_20": 1.0,
-    "recall_label_ge_2_at_20": 0.5873015873015873,
-    "has_relevant_rate_label_ge_2_at_20": 1.0
-  },
-  "uplift_vs_baseline": {
-    "ndcg_at_5_absolute": 0.16316480154359603,
-    "ndcg_at_5_relative": 0.20805809535182065,
-    "ndcg_at_10_absolute": 0.14774423684863103,
-    "ndcg_at_10_relative": 0.18472058705971647,
-    "ndcg_at_20_absolute": 0.1559513378438665,
-    "ndcg_at_20_relative": 0.18818489537045263
-  },
-  "shap": {
-    "status": "ready",
-    "top_features_by_mean_abs": [
-      {
-        "feature": "skill_overlap_ratio",
-        "mean_abs_shap": 1.9179799556732178,
-        "mean_shap": -1.4879682064056396
-      },
-      {
-        "feature": "title_overlap_ratio",
-        "mean_abs_shap": 0.5995907187461853,
-        "mean_shap": 0.12446533143520355
-      },
-      {
-        "feature": "retrieval_rank",
-        "mean_abs_shap": 0.3900632858276367,
-        "mean_shap": -0.19005292654037476
-      },
-      {
-        "feature": "years_gap",
-        "mean_abs_shap": 0.2270866483449936,
-        "mean_shap": -0.11663763225078583
-      },
-      {
-        "feature": "skill_overlap_count",
-        "mean_abs_shap": 0.17088398337364197,
-        "mean_shap": -0.046685487031936646
-      },
-      {
-        "feature": "embedding_cosine",
-        "mean_abs_shap": 0.13219724595546722,
-        "mean_shap": -0.1024642065167427
-      },
-      {
-        "feature": "experience_match_flag",
-        "mean_abs_shap": 0.057796742767095566,
-        "mean_shap": -0.012827698141336441
-      },
-      {
-        "feature": "resume_years_experience",
-        "mean_abs_shap": 0.037093278020620346,
-        "mean_shap": -0.013135270215570927
-      },
-      {
-        "feature": "job_years_required",
-        "mean_abs_shap": 0.03286280110478401,
-        "mean_shap": -0.0030738424975425005
-      },
-      {
-        "feature": "embedding_cosine_norm",
-        "mean_abs_shap": 0.02487812377512455,
-        "mean_shap": -0.01934836059808731
-      }
-    ]
-  },
-  "train_label_rates": {
-    "0": 0.02,
-    "1": 0.885,
-    "2": 0.095
+  "best_params": {
+    "num_leaves": 31,
+    "learning_rate": 0.005,
+    "min_data_in_leaf": 20,
+    "feature_fraction": 1.0,
+    "bagging_fraction": 0.8,
+    "bagging_freq": 3,
+    "lambda_l1": 0.1,
+    "lambda_l2": 1.0,
+    "min_gain_to_split": 0.0,
+    "max_depth": 4
   }
 }

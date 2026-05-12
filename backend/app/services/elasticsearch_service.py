@@ -16,7 +16,10 @@ logger = logging.getLogger(__name__)
 
 
 class ElasticsearchRetrievalService:
-    """Retrieves top-K candidate resumes from Elasticsearch kNN index."""
+    """Retrieves top-K candidate resumes via hybrid kNN + BM25 search on Elasticsearch."""
+
+    KNN_BOOST = 1.0
+    BM25_BOOST = 0.5
 
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
@@ -54,32 +57,86 @@ class ElasticsearchRetrievalService:
         top_k: int,
         num_candidates: int,
         index_name: str | None = None,
+        query_text: str | None = None,
+        query_skills: list[str] | None = None,
+        query_title: str | None = None,
     ) -> list[dict[str, Any]]:
+        """Hybrid retrieval: kNN over dense embedding + lexical BM25 over text/skills/titles.
+
+        When `query_text` / `query_skills` / `query_title` are omitted the call degrades to
+        a pure kNN search, matching the previous behavior.
+        """
         index = index_name or self.settings.elasticsearch_index_name
+        knn_block = {
+            "field": "embedding",
+            "query_vector": query_vector.tolist(),
+            "k": top_k,
+            "num_candidates": max(num_candidates, top_k),
+            "boost": self.KNN_BOOST,
+        }
+
+        should_clauses: list[dict[str, Any]] = []
+        text_blob = (query_text or "").strip()
+        if text_blob:
+            should_clauses.append(
+                {
+                    "match": {
+                        "resume_text": {
+                            "query": text_blob,
+                            "boost": self.BM25_BOOST,
+                        }
+                    }
+                }
+            )
+        cleaned_skills = [s.strip().lower() for s in (query_skills or []) if str(s).strip()]
+        if cleaned_skills:
+            should_clauses.append(
+                {
+                    "terms": {
+                        "resume_skills_norm": cleaned_skills,
+                        "boost": self.BM25_BOOST,
+                    }
+                }
+            )
+        title_blob = (query_title or "").strip()
+        if title_blob:
+            should_clauses.append(
+                {
+                    "match": {
+                        "resume_titles_norm": {
+                            "query": title_blob,
+                            "boost": self.BM25_BOOST * 0.5,
+                        }
+                    }
+                }
+            )
+
+        search_kwargs: dict[str, Any] = {
+            "index": index,
+            "knn": knn_block,
+            "_source": [
+                "resume_id",
+                "resume_text",
+                "resume_skills_norm",
+                "resume_titles_norm",
+                "resume_years_experience",
+            ],
+            "size": top_k,
+        }
+        if should_clauses:
+            search_kwargs["query"] = {"bool": {"should": should_clauses, "minimum_should_match": 0}}
 
         try:
             client = self._connect()
-            response = client.search(
-                index=index,
-                knn={
-                    "field": "embedding",
-                    "query_vector": query_vector.tolist(),
-                    "k": top_k,
-                    "num_candidates": max(num_candidates, top_k),
-                },
-                _source=[
-                    "resume_id",
-                    "resume_text",
-                    "resume_skills_norm",
-                    "resume_titles_norm",
-                    "resume_years_experience",
-                ],
-                size=top_k,
-            )
+            response = client.search(**search_kwargs)
             hits = response.get("hits", {}).get("hits", [])
             for hit in hits:
                 hit["retrieval_score_raw"] = to_float(hit.get("_score", 0.0), default=0.0)
-            logger.info("Elasticsearch retrieval completed: %s hits", len(hits))
+            logger.info(
+                "Elasticsearch retrieval completed: hits=%s mode=%s",
+                len(hits),
+                "hybrid" if should_clauses else "knn",
+            )
             return hits
         except ElasticsearchUnavailableError:
             raise

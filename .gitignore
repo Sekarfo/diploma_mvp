@@ -39,4 +39,41 @@ Thumbs.db
 
 data/labels/labeled_pairs_first*.csv
 data/labels/*_smoke.csv
-data/processed/dataset_outputs/csv/candidate_pairs_auto.csv
+data/embeddings/*.npy
+
+# Large dataset files (ignore big CSVs under data/)
+# These patterns cover common large dataset files and folders.
+data/**/*.csv
+data/*.csv
+data/**/jobs*.csv
+data/**/resumes*.csv
+data/**/pair_features*.csv
+data/**/labels/*.csv
+
+# Model artifacts and trained binaries
+models/
+models/*.joblib
+models/*.pkl
+models/*.pickle
+
+# Embedding / numeric artifacts
+embeddings/*.npy
+
+# Logs, temp and runtime files
+logs/
+*.log
+*.tmp
+*.cache
+
+# Environment and secret files
+.env
+.env.*
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Database files
+*.sqlite3
+db.sqlite3
+

@@ -222,11 +222,19 @@ class ShortlistService:
         if retrieved_csv is not None:
             hits = self.retrieval_service.retrieve_hits_from_csv(retrieved_csv, top_k=effective_pool_size)
         else:
+            job_text = " ".join(
+                str(job_row.get(field, "") or "")
+                for field in ("job_title", "job_description")
+            ).strip()
+            job_skills_list = parse_list_col(job_row.get("job_skills_norm", []))
             hits = self.retrieval_service.retrieve_hits(
                 query_vector=query_vector,
                 top_k=effective_pool_size,
                 num_candidates=ann_num_candidates,
                 index_name=index_name,
+                query_text=job_text,
+                query_skills=job_skills_list,
+                query_title=str(job_row.get("job_title", "") or ""),
             )
 
         if not hits:

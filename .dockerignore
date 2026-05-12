@@ -1,0 +1,17 @@
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.mypy_cache
+**/.venv
+**/.env
+.git
+.gitignore
+.idea
+.vscode
+node_modules
+data/raw
+data/Clear/*.csv.zip
+models/metrics
+*.log
+*.tmp

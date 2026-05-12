@@ -6,18 +6,9 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Final
 
-EXPECTED_RANKER_FEATURES = [
-    "embedding_cosine",
-    "embedding_cosine_norm",
-    "skill_overlap_count",
-    "skill_overlap_ratio",
-    "title_overlap_ratio",
-    "resume_years_experience",
-    "job_years_required",
-    "years_gap",
-    "experience_match_flag",
-    "retrieval_rank",
-]
+from src.ml.config import FEATURE_COLUMNS
+
+EXPECTED_RANKER_FEATURES: list[str] = list(FEATURE_COLUMNS)
 
 _TRUE_VALUES: Final[set[str]] = {"1", "true", "yes", "on"}
 
@@ -39,8 +30,9 @@ def _load_env_file(path: Path) -> None:
 @dataclass(frozen=True)
 class Settings:
     root_dir: Path
-    processed_dir: Path
-    dataset_outputs_dir: Path
+    data_dir: Path
+    raw_data_dir: Path
+    embeddings_dir: Path
 
     jobs_parquet_candidates: tuple[Path, ...]
     jobs_csv_candidates: tuple[Path, ...]
@@ -55,6 +47,10 @@ class Settings:
     elasticsearch_username: str | None
     elasticsearch_password: str | None
     elasticsearch_index_name: str
+
+    cross_encoder_model: str
+    cross_encoder_max_length: int
+    cross_encoder_batch_size: int
 
     database_url: str
     db_schema_autocreate: bool
@@ -71,53 +67,33 @@ class Settings:
 def get_settings() -> Settings:
     root_dir = Path(__file__).resolve().parents[3]
     _load_env_file(root_dir / ".env")
-    processed_dir = root_dir / "data" / "processed"
-    dataset_outputs_dir = processed_dir / "dataset_outputs"
+    data_dir = root_dir / "data"
+    raw_data_dir = data_dir / "Clear"
+    embeddings_dir = data_dir / "embeddings"
+    models_dir = root_dir / "models"
 
     return Settings(
         root_dir=root_dir,
-        processed_dir=processed_dir,
-        dataset_outputs_dir=dataset_outputs_dir,
-        jobs_parquet_candidates=(
-            processed_dir / "jobs_clean.parquet",
-            dataset_outputs_dir / "jobs_clean.parquet",
-            dataset_outputs_dir / "parquet" / "jobs_clean.parquet",
-        ),
-        jobs_csv_candidates=(
-            processed_dir / "jobs_clean.csv",
-            dataset_outputs_dir / "jobs_clean.csv",
-            dataset_outputs_dir / "csv" / "jobs_clean.csv",
-        ),
-        resumes_parquet_candidates=(
-            processed_dir / "resumes_clean.parquet",
-            dataset_outputs_dir / "resumes_clean.parquet",
-            dataset_outputs_dir / "parquet" / "resumes_clean.parquet",
-        ),
-        resumes_csv_candidates=(
-            processed_dir / "resumes_clean.csv",
-            dataset_outputs_dir / "resumes_clean.csv",
-            dataset_outputs_dir / "csv" / "resumes_clean.csv",
-        ),
-        job_embeddings_candidates=(
-            processed_dir / "job_embeddings.npy",
-            dataset_outputs_dir / "job_embeddings.npy",
-            dataset_outputs_dir / "embeddings" / "job_embeddings.npy",
-        ),
-        resume_embeddings_candidates=(
-            processed_dir / "resume_embeddings.npy",
-            dataset_outputs_dir / "resume_embeddings.npy",
-            dataset_outputs_dir / "embeddings" / "resume_embeddings.npy",
-        ),
-        ranker_model_candidates=(
-            root_dir / "models" / "xgb_ranker.joblib",
-        ),
-        ranker_features_candidates=(
-            root_dir / "models" / "ranker_features.joblib",
-        ),
+        data_dir=data_dir,
+        raw_data_dir=raw_data_dir,
+        embeddings_dir=embeddings_dir,
+        jobs_parquet_candidates=tuple(),
+        jobs_csv_candidates=(raw_data_dir / "jobs_clean.csv",),
+        resumes_parquet_candidates=tuple(),
+        resumes_csv_candidates=(raw_data_dir / "resumes_clean.csv",),
+        job_embeddings_candidates=(embeddings_dir / "job_embeddings.npy",),
+        resume_embeddings_candidates=(embeddings_dir / "resume_embeddings.npy",),
+        ranker_model_candidates=(models_dir / "lgbm_ranker.joblib",),
+        ranker_features_candidates=(models_dir / "ranker_features.joblib",),
         elasticsearch_url=os.getenv("ELASTICSEARCH_URL", "http://127.0.0.1:9200"),
         elasticsearch_username=os.getenv("ELASTICSEARCH_USERNAME"),
         elasticsearch_password=os.getenv("ELASTICSEARCH_PASSWORD"),
         elasticsearch_index_name=os.getenv("ELASTICSEARCH_INDEX", "resumes_index"),
+        cross_encoder_model=os.getenv(
+            "CROSS_ENCODER_MODEL", "cross-encoder/ms-marco-MiniLM-L-12-v2"
+        ),
+        cross_encoder_max_length=int(os.getenv("CROSS_ENCODER_MAX_LENGTH", "512")),
+        cross_encoder_batch_size=int(os.getenv("CROSS_ENCODER_BATCH_SIZE", "64")),
         database_url=os.getenv(
             "DATABASE_URL",
             "postgresql://postgres:postgres@127.0.0.1:5432/hr_shortlist",
