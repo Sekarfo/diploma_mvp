@@ -56,10 +56,13 @@ def _get_pool() -> "ConnectionPool":
 def db_connection() -> Generator:
     """Yield a connection from the pool; auto-commit on success, rollback on error."""
     pool = _get_pool()
+    _inside_yield = False
     try:
         with pool.connection() as connection:
             try:
+                _inside_yield = True
                 yield connection
+                _inside_yield = False
                 connection.commit()
             except Exception:
                 connection.rollback()
@@ -67,6 +70,10 @@ def db_connection() -> Generator:
     except DatabaseUnavailableError:
         raise
     except Exception as exc:
+        if _inside_yield:
+            # Exception raised by application code inside the yield block —
+            # do NOT wrap it; let the original type propagate (e.g. AuthenticationError).
+            raise
         raise DatabaseUnavailableError(f"Failed to get DB connection from pool: {exc}") from exc
 
 
@@ -190,7 +197,7 @@ _MIGRATION_STATEMENTS = [
     "ALTER TABLE shortlist_candidates ADD COLUMN IF NOT EXISTS retrieval_rank INTEGER",
     "ALTER TABLE shortlist_candidates ADD COLUMN IF NOT EXISTS feature_snapshot JSONB",
     "ALTER TABLE shortlist_candidates ADD COLUMN IF NOT EXISTS explanation_json JSONB",
-    # vacancies backfill for profile queries
+    # vacancies backfill for profile queries — nullable intentionally for legacy rows
     "ALTER TABLE vacancies ADD COLUMN IF NOT EXISTS owner_user_id UUID",
     "ALTER TABLE vacancies ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'manual'",
     "ALTER TABLE vacancies ADD COLUMN IF NOT EXISTS years_required DOUBLE PRECISION",
@@ -206,9 +213,17 @@ def ensure_postgres_schema() -> None:
     if not settings.db_schema_autocreate:
         return
 
+    # Schema statements (CREATE TABLE / INDEX IF NOT EXISTS) run together — safe to batch.
     with db_connection() as connection:
         with connection.cursor() as cursor:
             for statement in _SCHEMA_STATEMENTS:
                 cursor.execute(statement)
-            for statement in _MIGRATION_STATEMENTS:
-                cursor.execute(statement)
+
+    # Migration statements run individually so a single failure doesn't roll back others.
+    for statement in _MIGRATION_STATEMENTS:
+        try:
+            with db_connection() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(statement)
+        except Exception as exc:
+            logger.warning("Migration statement skipped (%s): %.120s", type(exc).__name__, statement.strip())

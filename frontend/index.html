@@ -19,7 +19,7 @@
       <article class="auth-card">
         <div class="brand auth-brand-section">
           <div class="brand-mark">selects.</div>
-          <div class="brand-sub">HR shortlist · candidate ranking console</div>
+          <div class="brand-sub">AI-powered candidate ranking</div>
         </div>
         <hr />
 
@@ -69,14 +69,13 @@
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-mark">selects.</div>
-          <div class="brand-sub">screening console · v1.0</div>
+          <div class="brand-sub">HR shortlist · v1.0</div>
         </div>
 
-        <div class="nav-section-label">Pipeline</div>
         <nav class="nav">
           <button id="page-shortlist-btn" type="button" class="nav-item is-active">
             <span class="nav-glyph">[x]</span>
-            <span>Shortlist</span>
+            <span>Find Candidates</span>
           </button>
           <button id="page-profile-btn" type="button" class="nav-item">
             <span class="nav-glyph">[+]</span>
@@ -84,15 +83,16 @@
           </button>
           <button id="page-insights-btn" type="button" class="nav-item">
             <span class="nav-glyph">[+]</span>
-            <span>Insights</span>
+            <span>Model Insights</span>
           </button>
         </nav>
 
         <div class="flow-scope">
-          <div class="flow-scope-label">Flow scope</div>
+          <div class="flow-scope-label">How it works</div>
           <div class="flow-scope-body">
-            vacancy → search<br />
-            → rank → shortlist
+            1. Pick or describe a vacancy<br />
+            2. AI ranks all candidates<br />
+            3. Review &amp; leave decisions
           </div>
         </div>
       </aside>
@@ -112,7 +112,7 @@
           </div>
           <div class="status-spacer"></div>
           <div class="status-cell">
-            <span class="status-label">user:</span>
+            <span class="status-label">logged in as:</span>
             <span id="topbar-user-name" class="status-value">—</span>
           </div>
           <div class="theme-toggle">
@@ -132,8 +132,8 @@
           <section id="page-shortlist" class="screen is-active">
             <header class="screen-header">
               <div>
-                <h1 class="screen-title">shortlist</h1>
-                <p class="screen-sub">search and rank candidates against a vacancy specification</p>
+                <h1 class="screen-title">Find Candidates</h1>
+                <p class="screen-sub">Select a vacancy — the AI will retrieve and rank the best matching candidates from the resume database</p>
               </div>
             </header>
             <hr class="screen-divider" />
@@ -143,12 +143,12 @@
               <!-- Control panel -->
               <div class="panel">
                 <div class="panel-header">
-                  <h2 class="panel-title">vacancy</h2>
+                  <h2 class="panel-title">Vacancy</h2>
                 </div>
                 <div class="panel-tabs-wrap">
                   <div class="tabs">
-                    <button id="mode-existing" class="tab is-active" type="button">pick from catalog</button>
-                    <button id="mode-custom" class="tab" type="button">new vacancy</button>
+                    <button id="mode-existing" class="tab is-active" type="button">Choose from catalog</button>
+                    <button id="mode-custom" class="tab" type="button">Describe new vacancy</button>
                   </div>
                 </div>
 
@@ -156,56 +156,75 @@
                   <!-- Existing vacancy form -->
                   <form id="existing-form" class="stack-16">
                     <div>
-                      <label class="form-label" for="job-search">vacancy (start typing — 2 296 jobs)</label>
+                      <label class="form-label" for="job-search">Vacancy title</label>
                       <input class="field" id="job-search" type="text" list="job-options"
                              placeholder="e.g. Python Developer" autocomplete="off" required />
                       <datalist id="job-options"></datalist>
                     </div>
                     <div class="row-2">
                       <div>
-                        <label class="form-label" for="existing-topk">finalists to show</label>
+                        <label class="form-label" for="existing-topk">Candidates to show</label>
                         <input class="field" id="existing-topk" type="number" min="1" max="200" value="20" />
                       </div>
                       <div>
-                        <label class="form-label" for="existing-num-candidates">pool to evaluate</label>
+                        <label class="form-label" for="existing-num-candidates">
+                          Search depth
+                          <span class="label-hint">(more = better)</span>
+                        </label>
                         <input class="field" id="existing-num-candidates" type="number" min="1" max="5000" value="100" />
                       </div>
                     </div>
-                    <button class="btn btn-primary btn-block" type="submit">→ find candidates</button>
+                    <button class="btn btn-primary btn-block" type="submit">→ Find Candidates</button>
                   </form>
 
                   <!-- Custom vacancy form -->
                   <form id="custom-form" class="stack-16 hidden">
+                    <!-- File upload zone -->
                     <div>
-                      <label class="form-label" for="vacancy-title">vacancy title</label>
-                      <input class="field" id="vacancy-title" type="text" placeholder="Senior Data Scientist" required />
+                      <label class="form-label">Auto-fill from file <span class="label-hint">(optional)</span></label>
+                      <div class="upload-zone" id="upload-zone">
+                        <input type="file" id="vacancy-file-input" accept=".pdf,.docx,.doc" tabindex="-1" aria-label="Upload vacancy file (PDF or DOCX)" />
+                        <div class="upload-zone-label">
+                          <b>Drop PDF / DOCX here</b> or click to browse
+                          <span class="upload-ext">.pdf · .docx — max 10 MB</span>
+                        </div>
+                      </div>
+                      <p id="upload-status" class="upload-status"></p>
+                      <div id="upload-parsed-info" class="upload-parsed-info"></div>
                     </div>
                     <div>
-                      <label class="form-label" for="vacancy-description">vacancy description</label>
+                      <label class="form-label" for="vacancy-title">Vacancy title</label>
+                      <input class="field" id="vacancy-title" type="text" placeholder="e.g. Senior Data Scientist" required />
+                    </div>
+                    <div>
+                      <label class="form-label" for="vacancy-description">Vacancy description</label>
                       <textarea class="field" id="vacancy-description" rows="5"
-                                placeholder="Paste vacancy text here..." required></textarea>
+                                placeholder="Paste the full job description here…" required></textarea>
                     </div>
                     <div class="row-2">
                       <div>
-                        <label class="form-label" for="vacancy-years">years required (opt.)</label>
+                        <label class="form-label" for="vacancy-years">Min. experience (years) <span class="label-hint">optional</span></label>
                         <input class="field" id="vacancy-years" type="number" min="0" max="60" step="0.5" placeholder="3" />
                       </div>
                       <div>
-                        <label class="form-label" for="vacancy-skills">skills csv (opt.)</label>
+                        <label class="form-label" for="vacancy-skills">Key skills <span class="label-hint">comma-separated</span></label>
                         <input class="field" id="vacancy-skills" type="text" placeholder="python, sql, spark" />
                       </div>
                     </div>
                     <div class="row-2">
                       <div>
-                        <label class="form-label" for="custom-topk">finalists to show</label>
+                        <label class="form-label" for="custom-topk">Candidates to show</label>
                         <input class="field" id="custom-topk" type="number" min="1" max="200" value="20" />
                       </div>
                       <div>
-                        <label class="form-label" for="custom-num-candidates">pool to evaluate</label>
+                        <label class="form-label" for="custom-num-candidates">
+                          Search depth
+                          <span class="label-hint">(more = better)</span>
+                        </label>
                         <input class="field" id="custom-num-candidates" type="number" min="1" max="5000" value="100" />
                       </div>
                     </div>
-                    <button class="btn btn-primary btn-block" type="submit">→ find candidates</button>
+                    <button class="btn btn-primary btn-block" type="submit">→ Find Candidates</button>
                   </form>
                 </div>
               </div>
@@ -213,12 +232,12 @@
               <!-- Results panel -->
               <div class="panel">
                 <div class="panel-header">
-                  <h2 class="panel-title">candidates</h2>
-                  <span id="results-meta" class="mono-mute">build a shortlist to see ranked candidates.</span>
+                  <h2 class="panel-title">Ranked Candidates</h2>
+                  <span id="results-meta" class="mono-mute"></span>
                 </div>
                 <div id="results" class="panel-body flush">
                   <p class="mono-mute results-hint">
-                    pick a vacancy on the left, then click <b>→ find candidates</b> to see the ranked shortlist.
+                    Choose a vacancy on the left and click <b>→ Find Candidates</b> to see the AI-ranked shortlist.
                   </p>
                 </div>
               </div>
@@ -230,8 +249,8 @@
           <section id="page-profile" class="screen">
             <header class="screen-header">
               <div>
-                <h1 class="screen-title">profile</h1>
-                <p class="screen-sub">account info, added vacancies, and shortlist run history</p>
+                <h1 class="screen-title">My Profile</h1>
+                <p class="screen-sub">Account info, saved vacancies, and previous shortlist runs</p>
               </div>
             </header>
             <hr class="screen-divider" />
@@ -240,19 +259,19 @@
               <!-- Account info -->
               <div class="panel">
                 <div class="panel-header">
-                  <h2 class="panel-title">account</h2>
+                  <h2 class="panel-title">Account</h2>
                 </div>
                 <div class="panel-body">
                   <div class="kv-row">
-                    <span class="kv-key">name</span>
+                    <span class="kv-key">Name</span>
                     <span class="kv-val" id="profile-user-name">—</span>
                   </div>
                   <div class="kv-row">
-                    <span class="kv-key">email</span>
+                    <span class="kv-key">Email</span>
                     <span class="kv-val" id="profile-user-email">—</span>
                   </div>
                   <div class="kv-row">
-                    <span class="kv-key">role</span>
+                    <span class="kv-key">Role</span>
                     <span class="kv-val" id="profile-user-role">—</span>
                   </div>
                 </div>
@@ -261,22 +280,22 @@
               <!-- Vacancies -->
               <div class="panel">
                 <div class="panel-header">
-                  <h2 class="panel-title">vacancies i added</h2>
-                  <button id="vacancies-refresh" class="btn btn-secondary btn-sm" type="button">refresh</button>
+                  <h2 class="panel-title">My Vacancies</h2>
+                  <button id="vacancies-refresh" class="btn btn-secondary btn-sm" type="button">Refresh</button>
                 </div>
                 <div id="vacancy-list" class="panel-body flush">
-                  <p class="mono-mute panel-empty">no vacancies yet.</p>
+                  <p class="mono-mute panel-empty">No vacancies yet.</p>
                 </div>
               </div>
 
               <!-- History -->
               <div class="panel">
                 <div class="panel-header">
-                  <h2 class="panel-title">shortlist history</h2>
-                  <button id="history-refresh" class="btn btn-secondary btn-sm" type="button">refresh</button>
+                  <h2 class="panel-title">Search History</h2>
+                  <button id="history-refresh" class="btn btn-secondary btn-sm" type="button">Refresh</button>
                 </div>
                 <div id="history-list" class="panel-body flush">
-                  <p class="mono-mute panel-empty">no shortlist history yet.</p>
+                  <p class="mono-mute panel-empty">No searches yet.</p>
                 </div>
               </div>
             </div>
@@ -286,8 +305,8 @@
           <section id="page-insights" class="screen">
             <header class="screen-header">
               <div>
-                <h1 class="screen-title">insights</h1>
-                <p class="screen-sub">model ranking factors and SHAP feature importance</p>
+                <h1 class="screen-title">Model Insights</h1>
+                <p class="screen-sub">Which factors matter most in candidate ranking, and why</p>
               </div>
             </header>
             <hr class="screen-divider" />
@@ -296,26 +315,26 @@
               <!-- Explainer cards -->
               <div class="insights-explainers">
                 <div class="panel">
-                  <div class="panel-header"><h2 class="panel-title">what this shows</h2></div>
+                  <div class="panel-header"><h2 class="panel-title">What is this?</h2></div>
                   <div class="panel-body">
                     <p class="insight-desc">
-                      Factors most responsible for moving candidates up or down in ranking across validation data.
+                      This page shows which signals most influence candidate ranking — based on SHAP analysis of the trained AI model.
                     </p>
                   </div>
                 </div>
                 <div class="panel">
-                  <div class="panel-header"><h2 class="panel-title">how to read bars</h2></div>
+                  <div class="panel-header"><h2 class="panel-title">How to read the bars</h2></div>
                   <div class="panel-body">
                     <p class="insight-desc">
-                      Larger mean |SHAP| = stronger influence. Not "good" or "bad" alone — it means importance.
+                      Longer bar = stronger influence on final rank. A high score doesn't mean "good fit" on its own — it means the signal is important.
                     </p>
                   </div>
                 </div>
                 <div class="panel">
-                  <div class="panel-header"><h2 class="panel-title">HR guideline</h2></div>
+                  <div class="panel-header"><h2 class="panel-title">Important note</h2></div>
                   <div class="panel-body">
                     <p class="insight-desc">
-                      Use SHAP as transparency support. Make final decisions with human review and interview evidence.
+                      Use AI ranking as a first filter. Always review candidate resumes and conduct interviews before making hiring decisions.
                     </p>
                   </div>
                 </div>
@@ -324,8 +343,8 @@
               <!-- SHAP factors -->
               <div class="panel">
                 <div class="panel-header">
-                  <h2 class="panel-title">top ranking factors</h2>
-                  <span id="global-explainer-meta" class="mono-mute">loading SHAP summary...</span>
+                  <h2 class="panel-title">Top Ranking Factors</h2>
+                  <span id="global-explainer-meta" class="mono-mute">loading…</span>
                 </div>
                 <div id="global-shap-list" class="panel-body"></div>
               </div>
@@ -333,7 +352,7 @@
               <!-- Feature glossary -->
               <div class="panel">
                 <div class="panel-header">
-                  <h2 class="panel-title">feature glossary</h2>
+                  <h2 class="panel-title">Signal Reference</h2>
                 </div>
                 <div id="feature-glossary-list" class="panel-body flush"></div>
               </div>
@@ -349,8 +368,8 @@
       <div id="resume-modal-backdrop" class="resume-modal-backdrop"></div>
       <article class="resume-modal-card" role="dialog" aria-modal="true" aria-labelledby="resume-modal-title">
         <div class="panel-header">
-          <h3 id="resume-modal-title" class="panel-title">resume</h3>
-          <button id="resume-modal-close" type="button" class="btn btn-secondary btn-sm">close</button>
+          <h3 id="resume-modal-title" class="panel-title">Resume</h3>
+          <button id="resume-modal-close" type="button" class="btn btn-secondary btn-sm">Close</button>
         </div>
         <div class="panel-body">
           <pre id="resume-modal-text" class="resume-modal-text"></pre>
@@ -377,14 +396,59 @@
         <div class="resume-snippet-box"></div>
 
         <div class="cand-actions-row">
-          <button class="btn btn-ghost btn-sm view-resume-btn" type="button">view resume</button>
+          <button class="btn btn-ghost btn-sm view-resume-btn" type="button">View Resume</button>
           <details class="candidate-more cand-why-details">
-            <summary>why this rank?</summary>
+            <summary>Why this candidate?</summary>
             <div class="details-grid"></div>
           </details>
         </div>
+
+        <!-- Feedback bar -->
+        <div class="feedback-bar">
+          <span class="feedback-label">Your decision:</span>
+          <button class="fb-btn fb-accept"    type="button" data-decision="accept">Accept</button>
+          <button class="fb-btn fb-interview" type="button" data-decision="interview">Interview</button>
+          <button class="fb-btn fb-maybe"     type="button" data-decision="maybe">Maybe</button>
+          <button class="fb-btn fb-reject"    type="button" data-decision="reject">Reject</button>
+          <button class="fb-clear-btn fb-clear" type="button" title="Clear decision">×</button>
+        </div>
+
+        <!-- Saved comment display — shown when a note already exists for this candidate -->
+        <div class="fb-saved-comment hidden">
+          <span class="fb-saved-label">Saved comment</span>
+          <p class="fb-saved-text"></p>
+          <button type="button" class="btn btn-ghost btn-sm fb-edit-btn">Edit</button>
+        </div>
+
+        <!-- Comment box — appears after selecting a decision -->
+        <div class="fb-comment-box hidden">
+          <label class="fb-comment-label">
+            Comment <span class="fb-comment-required">(required)</span>
+          </label>
+          <textarea
+            class="fb-comment-input field"
+            rows="2"
+            maxlength="2000"
+            placeholder="Briefly explain your decision…"
+          ></textarea>
+          <div class="fb-comment-actions">
+            <button class="btn btn-primary btn-sm fb-save-btn" type="button">Save</button>
+            <button class="btn btn-ghost btn-sm fb-cancel-btn" type="button">Cancel</button>
+          </div>
+        </div>
       </article>
     </template>
+
+    <!-- ===== SEARCH LOADING OVERLAY ===== -->
+    <div id="search-overlay" class="search-overlay hidden" aria-live="polite" role="status">
+      <div class="search-overlay-box">
+        <div class="search-spinner"></div>
+        <div>
+          <p id="search-overlay-text" class="search-overlay-text">Searching candidates…</p>
+          <p class="search-overlay-sub">retrieval → rerank → ML scoring</p>
+        </div>
+      </div>
+    </div>
 
     <script src="/ui/app.js"></script>
   </body>

@@ -40,6 +40,16 @@
   --danger: #b8261d;
   --warning: #b87308;
   --accent: #1a5fbf;
+
+  /* Aqua + beige palette — key call-to-action surfaces */
+  --aqua: #2ea4a9;
+  --aqua-deep: #1d7e83;
+  --aqua-soft: #d6f0f1;
+  --beige: #e8dcc4;
+  --beige-deep: #c9b894;
+  --beige-soft: #faf3e3;
+  --aqua-ink: #ffffff;
+  --beige-ink: #4a3f25;
 }
 
 /* ---------- Dark theme ---------- */
@@ -67,6 +77,16 @@
   --danger: #ff6359;
   --warning: #ffb04a;
   --accent: #5c9eff;
+
+  /* Aqua + beige palette — key call-to-action surfaces (dark) */
+  --aqua: #4fc6cc;
+  --aqua-deep: #6fd6db;
+  --aqua-soft: #1f3838;
+  --beige: #d8c8a4;
+  --beige-deep: #b7a47c;
+  --beige-soft: #3a3326;
+  --aqua-ink: #0a1f20;
+  --beige-ink: #e8dcc4;
 }
 
 * { box-sizing: border-box; }
@@ -317,11 +337,27 @@ textarea { font-family: var(--font-mono); }
   text-decoration: none;
 }
 .btn-primary {
-  background: var(--surface-inverse);
-  color: var(--on-inverse);
-  border-color: var(--surface-inverse);
+  background:
+    repeating-linear-gradient(
+      135deg,
+      var(--aqua) 0,
+      var(--aqua) 10px,
+      var(--aqua-deep) 10px,
+      var(--aqua-deep) 20px
+    );
+  color: var(--aqua-ink);
+  border-color: var(--aqua-deep);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 1px 0 var(--beige-deep), 0 2px 6px rgba(46, 164, 169, 0.18);
+  transition: transform 0.08s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
-.btn-primary:hover { background: var(--ink-deep); }
+.btn-primary:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 1px 0 var(--beige-deep), 0 4px 10px rgba(46, 164, 169, 0.28);
+  transform: translateY(-1px);
+}
+.btn-primary:active { transform: translateY(0); filter: brightness(0.96); }
 .btn-secondary {
   background: var(--canvas);
   color: var(--ink);
@@ -388,6 +424,14 @@ textarea { font-family: var(--font-mono); }
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin-bottom: 6px;
+}
+
+.label-hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ash);
+  font-size: 10px;
 }
 
 .field {
@@ -605,6 +649,51 @@ details[open].candidate-more summary::before { content: "- "; }
 .manpage .mp-sep  { color: var(--ash); }
 .manpage .mp-desc { color: var(--ash); }
 
+/* ---------- Search loading overlay ---------- */
+.search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+.search-overlay-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--rounded-sm);
+  padding: 40px 56px;
+  min-width: 280px;
+}
+.search-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--hairline-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.search-overlay-text {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  text-align: center;
+}
+.search-overlay-sub {
+  color: var(--mute);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
 /* ---------- Resume modal ---------- */
 .resume-modal {
   position: fixed;
@@ -697,6 +786,212 @@ details[open].candidate-more summary::before { content: "- "; }
   flex-wrap: wrap;
 }
 .cand-why-details { flex: 1; }
+
+/* ---------- Vacancy file upload ---------- */
+.upload-zone {
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--rounded-sm);
+  padding: 20px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+}
+.upload-zone:hover,
+.upload-zone.drag-over {
+  border-color: var(--ink);
+  background: var(--surface-soft);
+}
+.upload-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.upload-zone-label {
+  font-size: 13px;
+  color: var(--mute);
+  pointer-events: none;
+}
+.upload-zone-label b { color: var(--ink); }
+.upload-zone-label .upload-ext { font-size: 11px; color: var(--ash); display: block; margin-top: 4px; }
+
+.upload-status {
+  font-size: 12px;
+  margin-top: 8px;
+  min-height: 18px;
+}
+.upload-status.ok    { color: var(--success); }
+.upload-status.error { color: var(--danger); }
+.upload-status.loading { color: var(--mute); }
+
+.upload-parsed-info {
+  border: 1px solid var(--hairline);
+  border-radius: var(--rounded-sm);
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--mute);
+  margin-top: 8px;
+  display: none;
+}
+.upload-parsed-info.visible { display: block; }
+.upload-parsed-info b { color: var(--ink); }
+
+/* ---------- Feedback decision buttons ---------- */
+.feedback-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hairline);
+}
+.feedback-label { font-size: 11px; color: var(--ash); text-transform: uppercase; letter-spacing: 0.06em; }
+.fb-btn {
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: var(--rounded-sm);
+  padding: 2px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--mute);
+  cursor: pointer;
+}
+.fb-btn:hover { border-color: var(--hairline-strong); color: var(--ink); }
+.fb-btn.is-active-accept    { color: var(--success); border-color: var(--success); font-weight: 700; }
+.fb-btn.is-active-interview { color: var(--accent);  border-color: var(--accent);  font-weight: 700; }
+.fb-btn.is-active-maybe     { color: var(--warning); border-color: var(--warning); font-weight: 700; }
+.fb-btn.is-active-reject    { color: var(--danger);  border-color: var(--danger);  font-weight: 700; }
+.fb-clear-btn {
+  background: transparent;
+  border: 0;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ash);
+  cursor: pointer;
+  margin-left: auto;
+}
+.fb-clear-btn:hover { color: var(--danger); }
+
+/* ---------- Feedback comment box ---------- */
+.fb-comment-box {
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fb-comment-box.hidden { display: none; }
+.fb-comment-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--mute);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.fb-comment-required {
+  color: var(--danger);
+  text-transform: none;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.fb-comment-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 60px;
+}
+.fb-comment-input.has-error {
+  border-color: var(--danger);
+}
+.fb-comment-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Save button in feedback box — make it the focal action with the aqua accent */
+.fb-save-btn {
+  background: var(--aqua);
+  color: var(--aqua-ink);
+  border-color: var(--aqua-deep);
+  font-weight: 700;
+  box-shadow: 0 1px 0 var(--beige-deep);
+}
+.fb-save-btn:hover { background: var(--aqua-deep); }
+
+/* ---------- Saved-comment block (beige notepad) ---------- */
+.fb-saved-comment {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--beige-soft);
+  border: 1px solid var(--beige-deep);
+  border-left: 4px solid var(--aqua);
+  border-radius: var(--rounded-sm);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  align-items: start;
+}
+.fb-saved-comment.hidden { display: none; }
+.fb-saved-label {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--aqua-deep);
+}
+.fb-saved-text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--beige-ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.fb-edit-btn {
+  align-self: start;
+  border-color: var(--beige-deep);
+  color: var(--beige-ink);
+  background: var(--canvas);
+}
+.fb-edit-btn:hover { background: var(--beige); }
+
+/* ---------- Emphasize the rank pill and score badge — they're the first thing HR reads ---------- */
+.rank-pill {
+  background: var(--beige-soft);
+  border-color: var(--beige-deep);
+  color: var(--beige-ink);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 3px 10px;
+}
+.score-fused {
+  font-weight: 700;
+  padding: 3px 10px;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+.score-fused.badge-success {
+  background: var(--aqua-soft);
+}
+
+/* ---------- Status messages — make "ok" pop with aqua, errors more visible ---------- */
+.app-msg.ok {
+  color: var(--aqua-deep);
+  font-weight: 600;
+}
+.app-msg.error {
+  color: var(--danger);
+  font-weight: 600;
+  background: rgba(184, 38, 29, 0.06);
+}
+[data-theme="dark"] .app-msg.ok { color: var(--aqua); }
+[data-theme="dark"] .app-msg.error { background: rgba(255, 99, 89, 0.08); }
+
+/* Status dot ties into the aqua palette */
+.status-dot { background: var(--aqua); box-shadow: 0 0 0 2px var(--aqua-soft); }
 
 /* ---------- Scrollbar (subtle) ---------- */
 .sidebar::-webkit-scrollbar { width: 6px; }

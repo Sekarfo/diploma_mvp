@@ -4,16 +4,21 @@ import logging
 import time
 from functools import lru_cache
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, status
 
 from backend.app.schemas import (
     AuthMeResponse,
     AuthResponse,
+    FairnessReport,
+    FeedbackListResponse,
+    FeedbackRequest,
+    FeedbackResponse,
     GlobalModelExplanationResponse,
     HistoryDetailResponse,
     HistoryListResponse,
     JobDetailResponse,
     JobsResponse,
+    ParsedVacancyResponse,
     RuntimeStatsResponse,
     ShortlistRequest,
     ShortlistResponse,
@@ -29,10 +34,12 @@ from backend.app.limiter import limiter
 from backend.app.services import (
     AuthenticatedUser,
     AuthService,
+    FairnessService,
     HistoryService,
     ShortlistService,
     get_auth_service,
     get_current_user,
+    get_fairness_service,
     get_history_service,
     get_model_explanation_service,
     get_runtime_metrics_service,
@@ -115,6 +122,7 @@ def health() -> dict:
 
 
 @router.post("/auth/signup", response_model=AuthResponse)
+@limiter.limit("10/minute")
 def signup(payload: SignUpRequest, request: Request) -> AuthResponse:
     logger.info("POST /auth/signup request started email=%s", payload.email)
     try:
@@ -284,6 +292,40 @@ def get_global_model_explanation() -> GlobalModelExplanationResponse:
         raise _map_error_to_http(exc) from exc
 
 
+@router.get("/stats/fairness", response_model=FairnessReport)
+def get_fairness_report(
+    group_by: str = Query(default="experience_bucket"),
+    top_k_cutoff: int = Query(default=10, ge=1, le=200),
+    run_id: str | None = Query(default=None),
+    limit_runs: int = Query(default=200, ge=1, le=1000),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    fairness_service: FairnessService = Depends(get_fairness_service),
+) -> FairnessReport:
+    """Group-level selection-rate / score / feedback audit over historical runs.
+
+    Supported `group_by` values: experience_bucket, experience_match, skill_overlap_bucket.
+    When `run_id` is omitted, aggregates over the user's recent runs (capped by limit_runs).
+    """
+    logger.info(
+        "GET /stats/fairness user_id=%s group_by=%s top_k=%s run_id=%s",
+        current_user.user_id, group_by, top_k_cutoff, run_id,
+    )
+    try:
+        report = fairness_service.compute(
+            user_id=current_user.user_id,
+            group_by=group_by,
+            top_k_cutoff=top_k_cutoff,
+            run_id=run_id,
+            limit_runs=limit_runs,
+        )
+        return FairnessReport(**report)
+    except Exception as exc:
+        logger.exception(
+            "GET /stats/fairness failed user_id=%s: %s", current_user.user_id, exc
+        )
+        raise _map_error_to_http(exc) from exc
+
+
 @router.post("/shortlist", response_model=ShortlistResponse)
 @limiter.limit("20/minute")
 def shortlist(
@@ -308,8 +350,9 @@ def shortlist(
             num_candidates=payload.num_candidates,
         )
         latency_ms = int((time.perf_counter() - started) * 1000.0)
+        run_id: str | None = None
         try:
-            history_service.record_existing_job_shortlist(
+            run_id = history_service.record_existing_job_shortlist(
                 user_id=current_user.user_id,
                 request_payload=_model_to_dict(payload),
                 result_payload=result,
@@ -329,7 +372,7 @@ def shortlist(
             result["retrieved_count"],
             result["total_candidates"],
         )
-        return ShortlistResponse(**result)
+        return ShortlistResponse(**result, run_id=run_id)
     except Exception as exc:
         logger.exception("POST /shortlist failed user_id=%s job_id=%s: %s", current_user.user_id, payload.job_id, exc)
         raise _map_error_to_http(exc) from exc
@@ -362,8 +405,9 @@ def shortlist_for_vacancy(
             job_skills_norm=payload.job_skills_norm,
         )
         latency_ms = int((time.perf_counter() - started) * 1000.0)
+        run_id: str | None = None
         try:
-            history_service.record_custom_vacancy_shortlist(
+            run_id = history_service.record_custom_vacancy_shortlist(
                 user_id=current_user.user_id,
                 request_payload=_model_to_dict(payload),
                 result_payload=result,
@@ -383,8 +427,126 @@ def shortlist_for_vacancy(
             result["total_candidates"],
             result["proxy_job_id"],
         )
-        return VacancyShortlistResponse(**result)
+        return VacancyShortlistResponse(**result, run_id=run_id)
     except Exception as exc:
         logger.exception("POST /shortlist/vacancy failed user_id=%s: %s", current_user.user_id, exc)
         raise _map_error_to_http(exc) from exc
+
+
+# Feedback endpoints 
+
+@router.post("/shortlist/{run_id}/feedback", response_model=FeedbackResponse)
+@limiter.limit("60/minute")
+def submit_feedback(
+    request: Request,
+    run_id: str,
+    payload: FeedbackRequest,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    history_service: HistoryService = Depends(get_history_service),
+) -> FeedbackResponse:
+    logger.info(
+        "POST /shortlist/%s/feedback user_id=%s rank=%s decision=%s",
+        run_id, current_user.user_id, payload.final_rank, payload.decision,
+    )
+    try:
+        result = history_service.submit_feedback(
+            user_id=current_user.user_id,
+            run_id=run_id,
+            final_rank=payload.final_rank,
+            decision=payload.decision,
+            rating=payload.rating,
+            note=payload.note,
+        )
+        return FeedbackResponse(**result)
+    except Exception as exc:
+        logger.exception("POST /shortlist/%s/feedback failed: %s", run_id, exc)
+        raise _map_error_to_http(exc) from exc
+
+
+@router.delete("/shortlist/{run_id}/feedback/{final_rank}", status_code=204)
+def delete_feedback(
+    run_id: str,
+    final_rank: int,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    history_service: HistoryService = Depends(get_history_service),
+) -> None:
+    logger.info(
+        "DELETE /shortlist/%s/feedback/%s user_id=%s", run_id, final_rank, current_user.user_id
+    )
+    try:
+        history_service.delete_feedback(
+            user_id=current_user.user_id,
+            run_id=run_id,
+            final_rank=final_rank,
+        )
+    except Exception as exc:
+        logger.exception("DELETE /shortlist/%s/feedback/%s failed: %s", run_id, final_rank, exc)
+        raise _map_error_to_http(exc) from exc
+
+
+@router.get("/shortlist/{run_id}/feedback", response_model=FeedbackListResponse)
+def get_run_feedback(
+    run_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    history_service: HistoryService = Depends(get_history_service),
+) -> FeedbackListResponse:
+    logger.info(
+        "GET /shortlist/%s/feedback user_id=%s", run_id, current_user.user_id
+    )
+    try:
+        feedbacks = history_service.list_run_feedback(
+            user_id=current_user.user_id,
+            run_id=run_id,
+        )
+        return FeedbackListResponse(run_id=run_id, feedbacks=feedbacks)
+    except Exception as exc:
+        logger.exception("GET /shortlist/%s/feedback failed: %s", run_id, exc)
+        raise _map_error_to_http(exc) from exc
+
+
+#  Vacancy file parser
+
+@router.post("/vacancies/parse", response_model=ParsedVacancyResponse)
+@limiter.limit("20/minute")
+async def parse_vacancy_file(
+    request: Request,
+    file: UploadFile,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> ParsedVacancyResponse:
+    """
+    Upload a PDF or DOCX vacancy file.
+    Returns extracted title, description, years_required and skills.
+    The caller should review the fields and pass them to POST /shortlist/vacancy.
+    """
+    logger.info(
+        "POST /vacancies/parse user_id=%s filename=%s content_type=%s size=%s",
+        current_user.user_id,
+        file.filename,
+        file.content_type,
+        file.size,
+    )
+    from backend.app.services.vacancy_parser_service import VacancyParserService
+    svc = VacancyParserService()
+    try:
+        content = await file.read()
+        result = svc.parse(
+            content=content,
+            file_name=file.filename or "upload",
+            content_type=file.content_type or "",
+        )
+        return ParsedVacancyResponse(
+            title=result.title,
+            description=result.description,
+            years_required=result.years_required,
+            skills=result.skills,
+            file_name=result.file_name,
+            char_count=result.char_count,
+            page_count=result.page_count,
+            parse_warnings=result.parse_warnings,
+        )
+    except (ValueError, ImportError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("POST /vacancies/parse failed user_id=%s: %s", current_user.user_id, exc)
+        raise HTTPException(status_code=500, detail=f"File parsing failed: {exc}") from exc
 

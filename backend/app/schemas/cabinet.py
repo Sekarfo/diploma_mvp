@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -62,3 +64,57 @@ class VacancySummary(BaseModel):
 
 class VacancyListResponse(BaseModel):
     vacancies: list[VacancySummary] = Field(default_factory=list)
+
+
+# ── Feedback ──────────────────────────────────────────────────────────────────
+
+FeedbackDecision = Literal["accept", "reject", "maybe", "interview"]
+
+
+class FeedbackRequest(BaseModel):
+    final_rank: int = Field(..., ge=1, description="Rank of the candidate in the shortlist")
+    decision: FeedbackDecision
+    rating: int | None = Field(None, ge=1, le=5)
+    note: str | None = Field(None, max_length=2000)
+
+
+class FeedbackEntry(BaseModel):
+    feedback_id: str
+    run_id: str
+    final_rank: int
+    resume_id: str
+    decision: str
+    rating: int | None = None
+    note: str | None = None
+    created_at: str
+    updated_at: str
+
+
+class FeedbackResponse(BaseModel):
+    feedback_id: str
+    run_id: str
+    final_rank: int
+    resume_id: str
+    decision: str
+    rating: int | None = None
+    note: str | None = None
+    created_at: str
+    updated_at: str
+
+
+class FeedbackListResponse(BaseModel):
+    run_id: str
+    feedbacks: list[FeedbackEntry] = Field(default_factory=list)
+
+
+# ── Vacancy file parser ───────────────────────────────────────────────────────
+
+class ParsedVacancyResponse(BaseModel):
+    title: str
+    description: str
+    years_required: float | None = None
+    skills: list[str] = Field(default_factory=list)
+    file_name: str
+    char_count: int
+    page_count: int
+    parse_warnings: list[str] = Field(default_factory=list)

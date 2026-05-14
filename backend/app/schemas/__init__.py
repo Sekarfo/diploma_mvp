@@ -7,10 +7,15 @@ from .auth import (
     SignUpRequest,
 )
 from .cabinet import (
+    FeedbackEntry,
+    FeedbackListResponse,
+    FeedbackRequest,
+    FeedbackResponse,
     HistoryCandidate,
     HistoryDetailResponse,
     HistoryListResponse,
     HistoryRunSummary,
+    ParsedVacancyResponse,
     VacancyListResponse,
     VacancySummary,
 )
@@ -29,7 +34,13 @@ from .shortlist import (
     VacancyShortlistRequest,
     VacancyShortlistResponse,
 )
-from .stats import RuntimeEndpointMetric, RuntimeStatsResponse, StatsResponse
+from .stats import (
+    FairnessGroupMetric,
+    FairnessReport,
+    RuntimeEndpointMetric,
+    RuntimeStatsResponse,
+    StatsResponse,
+)
 
 __all__ = [
     "SignUpRequest",
@@ -44,6 +55,11 @@ __all__ = [
     "HistoryDetailResponse",
     "VacancySummary",
     "VacancyListResponse",
+    "FeedbackRequest",
+    "FeedbackEntry",
+    "FeedbackResponse",
+    "FeedbackListResponse",
+    "ParsedVacancyResponse",
     "JobsResponse",
     "JobDetailResponse",
     "GlobalShapFeature",
@@ -59,4 +75,6 @@ __all__ = [
     "StatsResponse",
     "RuntimeEndpointMetric",
     "RuntimeStatsResponse",
+    "FairnessGroupMetric",
+    "FairnessReport",
 ]

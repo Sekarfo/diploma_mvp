@@ -75,6 +75,7 @@ class ShortlistResponse(BaseModel):
     requested_top_k: int | None = None
     requested_num_candidates: int | None = None
     max_available_candidates: int | None = None
+    run_id: str | None = None    # set after history persistence
     candidates: list[ShortlistCandidate]
 
 

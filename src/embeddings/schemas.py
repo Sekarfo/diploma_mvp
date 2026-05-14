@@ -74,6 +74,10 @@ def _tokenize_skill_bag(phrases: list[str]) -> list[str]:
 
     Strategy:
       - drop URLs and empty strings
+      - split slash- and hyphen-joined compounds into atomic parts AND keep the
+        original combined form (so "git/github" yields "git", "github" AND
+        "git/github" — matching atomic job skills like "git" while preserving
+        compound-as-phrase matches)
       - keep phrases of 1–3 words as-is (preserves multi-word skills like "machine learning")
       - for longer phrases, emit individual non-stopword tokens and bigrams
     """
@@ -83,16 +87,37 @@ def _tokenize_skill_bag(phrases: list[str]) -> list[str]:
         if not text or text.startswith(("http://", "https://", "www.")):
             continue
         text = _PUNCT_STRIP.sub(" ", text)
-        words = [w for w in text.split() if w]
+
+        # First pass: keep slash/hyphen-joined tokens intact (so "node.js", "c++",
+        # "git/github" survive as single tokens for compound-form matching).
+        words_compound = [w for w in text.split() if w]
+        # Second pass: also explode slash- and hyphen-joined compounds so atomic
+        # job skills like "git" match when resumes write them as "git/github" or
+        # "object-oriented". This is the bug fix — without splitting these,
+        # "git" never matched "git/github" tokens in resume_skills_norm.
+        text_split = text.replace("/", " ").replace("-", " ")
+        words_split = [w for w in text_split.split() if w]
+
+        # Use the more atomic split for phrase / individual / bigram extraction,
+        # but also retain the compound form as a phrase token when short.
+        words = words_split if words_split else words_compound
         if not words:
             continue
         if 1 <= len(words) <= 3:
             tokens.add(" ".join(words))
-            if len(words) == 1:
-                continue
+        if 1 <= len(words_compound) <= 3 and words_compound != words:
+            # Preserve compound form (e.g. "git/github", "object-oriented")
+            tokens.add(" ".join(words_compound))
+
+        # Always emit individual tokens — fixes the slash/hyphen bug
         for word in words:
             if 2 <= len(word) <= 30 and word not in _SKILL_STOP_WORDS and not word.startswith("http"):
                 tokens.add(word)
+        # Also emit compound tokens individually (e.g. "node.js", "c++")
+        for word in words_compound:
+            if 2 <= len(word) <= 30 and word not in _SKILL_STOP_WORDS and not word.startswith("http"):
+                tokens.add(word)
+
         for i in range(len(words) - 1):
             w1, w2 = words[i], words[i + 1]
             if (

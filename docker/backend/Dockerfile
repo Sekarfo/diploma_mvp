@@ -35,4 +35,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=8 \
     CMD curl -fsS http://localhost:8000/health || exit 1
 
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Single worker on purpose: the cross-encoder + LightGBM artifacts each take ~500MB,
+# and a second worker would duplicate them in RAM (or VRAM on GPU). Concurrent
+# requests are still handled via FastAPI's async loop + threadpool.
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

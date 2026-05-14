@@ -10,6 +10,10 @@ const state = {
   jobs: [],
   historyRuns: [],
   vacancies: [],
+  currentRunId: null,       // run_id of the last shortlist result
+  feedbackByRank: {},       // { [final_rank]: decision } for current run
+  noteByRank: {},           // { [final_rank]: note } for current run
+  currentJobSkills: [],     // required skills of the vacancy in current results
 };
 
 const authScreenEl = document.getElementById("auth-screen");
@@ -65,6 +69,9 @@ const globalExplainerMetaEl = document.getElementById("global-explainer-meta");
 const globalShapListEl = document.getElementById("global-shap-list");
 const featureGlossaryListEl = document.getElementById("feature-glossary-list");
 
+const searchOverlayEl = document.getElementById("search-overlay");
+const searchOverlayTextEl = document.getElementById("search-overlay-text");
+
 const resumeModalEl = document.getElementById("resume-modal");
 const resumeModalTextEl = document.getElementById("resume-modal-text");
 const resumeModalTitleEl = document.getElementById("resume-modal-title");
@@ -73,6 +80,20 @@ const resumeModalBackdropEl = document.getElementById("resume-modal-backdrop");
 
 const themeLightBtn = document.getElementById("theme-light-btn");
 const themeDarkBtn = document.getElementById("theme-dark-btn");
+
+const uploadZoneEl       = document.getElementById("upload-zone");
+const vacancyFileInputEl = document.getElementById("vacancy-file-input");
+const uploadStatusEl     = document.getElementById("upload-status");
+const uploadParsedInfoEl = document.getElementById("upload-parsed-info");
+
+function showSearchOverlay(text = "Searching candidates…") {
+  if (searchOverlayTextEl) searchOverlayTextEl.textContent = text;
+  searchOverlayEl.classList.remove("hidden");
+}
+
+function hideSearchOverlay() {
+  searchOverlayEl.classList.add("hidden");
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -244,45 +265,126 @@ function closeResumeModal() {
 }
 
 function updateResultsMeta(payload, extra = "") {
-  const vacancy = payload.job_title || payload.vacancy_title || payload.job_id || "custom vacancy";
+  const vacancy = payload.job_title || payload.vacancy_title || payload.job_id || "Custom vacancy";
   const shown = payload.total_candidates ?? payload.returned_count ?? "-";
   const evaluated = payload.retrieved_count ?? payload.num_candidates ?? "-";
-  const parts = [
-    `top ${shown} of ${evaluated} evaluated`,
-    `vacancy: ${vacancy}`,
-    extra,
-  ].filter(Boolean);
+  // Show human-readable summary, hide internal pool/proxy details
+  const parts = [`${shown} candidates · "${vacancy}"`];
+  if (extra && !extra.startsWith("proxy:")) parts.push(extra);
   resultsMetaEl.textContent = parts.join(" · ");
+}
+
+// Maps raw ML feature names to plain-English one-liners for HR users.
+const FACTOR_LABELS = {
+  "ce_score_x_skill":                   "Strong content + skills relevance",
+  "embedding_cosine":                   "High semantic match to vacancy",
+  "embedding_cosine_norm":              "High semantic match to vacancy",
+  "embedding_cosine_squared":           "High semantic match to vacancy",
+  "skill_overlap_count":                "Covers required skills",
+  "skill_overlap_ratio":                "Good skill coverage",
+  "title_overlap_ratio":                "Job title aligns",
+  "years_gap":                          "Experience level fits",
+  "experience_match_flag":              "Meets experience requirements",
+  "resume_years_experience":            "Relevant experience level",
+  "job_years_required":                 "Experience requirement considered",
+  "abs_years_gap":                      "Experience level close to required",
+  "years_gap_squared":                  "Experience level close to required",
+  "retrieval_rank":                     "High retrieval relevance",
+  "log_retrieval_rank":                 "High retrieval relevance",
+  "retrieval_rank_inv":                 "High retrieval relevance",
+  "is_top5_retrieval":                  "Top-5 retrieval result",
+  "is_top10_retrieval":                 "Top-10 retrieval result",
+  "skill_overlap_x_emb":                "Skills + semantic match combined",
+  "experience_x_skill":                 "Experience and skills align",
+  "experience_x_emb":                   "Experience and content match",
+  "title_x_emb":                        "Title and content match",
+  "skill_x_title":                      "Skills and title align",
+  "embedding_cosine_zscore_in_job":     "Stands out semantically among candidates",
+  "skill_overlap_ratio_zscore_in_job":  "Stands out by skill coverage",
+  "title_overlap_ratio_zscore_in_job":  "Stands out by title match",
+  "embedding_cosine_rank_in_job":       "Top semantic match among candidates",
+  "skill_overlap_rank_in_job":          "Best skill coverage among candidates",
+  "title_overlap_rank_in_job":          "Best title match among candidates",
+  "combined_rank_in_job":               "Overall top-ranked candidate",
+};
+
+function friendlyFactorLabel(rawLabel, feature) {
+  return FACTOR_LABELS[feature] || FACTOR_LABELS[rawLabel] || rawLabel;
 }
 
 function buildCandidateSummary(candidate) {
   const explanation = candidate.explanation || {};
   const matched = explanation.matched_skills || [];
   const missing = explanation.missing_skills || [];
+  const years = numOr(candidate.resume_years_experience, 0);
+  const reqYears = numOr(candidate.job_years_required, 0);
+  const expFit = years >= reqYears;
 
   if (matched.length && missing.length) {
-    return `Matched: ${matched.slice(0, 4).join(", ")}. Missing: ${missing.slice(0, 3).join(", ")}.`;
+    return `Skills matched: ${matched.slice(0, 4).join(", ")}. Not found: ${missing.slice(0, 3).join(", ")}.`;
   }
   if (matched.length) {
-    return `Strong skill alignment on: ${matched.slice(0, 5).join(", ")}.`;
+    return `Strong skill alignment — covers: ${matched.slice(0, 5).join(", ")}.`;
   }
   if (explanation.experience_summary) {
     return explanation.experience_summary;
   }
-  return "Review details and resume text for final HR decision.";
+  if (expFit && years > 0) {
+    return `${Math.round(years)} years of experience — meets the requirement.`;
+  }
+  return "Review resume for skill and experience details.";
 }
 
-function renderCandidateDetails(candidate) {
+function renderCandidateDetails(candidate, jobSkills = []) {
   const explanation = candidate.explanation || {};
-  const matched = (explanation.matched_skills || []).slice(0, 5);
-  const missing = (explanation.missing_skills || []).slice(0, 4);
-  const positives = (explanation.top_positive_factors || []).slice(0, 3).map((item) => item.label).filter(Boolean);
+  const matched = (explanation.matched_skills || []).slice(0, 6);
+  const missing = (explanation.missing_skills || []).slice(0, 5);
+
+  // Top positive SHAP factors translated to plain English
+  const positives = (explanation.top_positive_factors || [])
+    .slice(0, 3)
+    .map((item) => friendlyFactorLabel(item.label, item.feature))
+    .filter(Boolean);
+
+  const overlapCount = numOr(candidate.skill_overlap_count, 0);
+
+  // Build a clear skills label:
+  // - if we have named matches → show them
+  // - if count > 0 but no names → show count (shouldn't normally happen)
+  // - if job has no required skills → explain that
+  // - otherwise → "No match in top results"
+  let matchedLabel;
+  if (matched.length) {
+    matchedLabel = matched.join(", ");
+  } else if (overlapCount > 0) {
+    matchedLabel = `${overlapCount} matched`;
+  } else if (jobSkills.length === 0) {
+    matchedLabel = "Vacancy has no required skills defined";
+  } else {
+    matchedLabel = "No exact match in top results";
+  }
+
+  // For missing: use explanation missing_skills, or derive from jobSkills − matched
+  let missingLabel;
+  if (missing.length) {
+    missingLabel = missing.join(", ");
+  } else if (jobSkills.length > 0 && matched.length === 0) {
+    // Show the required skills so user knows what was looked for
+    missingLabel = jobSkills.slice(0, 6).join(", ") + (jobSkills.length > 6 ? ` +${jobSkills.length - 6} more` : "");
+  } else {
+    missingLabel = "—";
+  }
+
+  const expSummary = explanation.experience_summary || "—";
+  const pct = scoreToPercent(candidate.final_fusion_score ?? candidate.score);
+  const tierText = pct >= 75 ? "Strong match" : pct >= 50 ? "Good match" : "Partial match";
 
   const rows = [
-    ["matched skills", matched.join(", ") || "not enough data"],
-    ["missing skills", missing.join(", ") || "none highlighted"],
-    ["experience fit", explanation.experience_summary || "review resume for full context"],
-    ["why recommended", positives.join(", ") || "strong overall relevance"],
+    ["Overall fit",       `${pct}% — ${tierText}`],
+    ["Skills matched",    matchedLabel],
+    ["Skills missing",    missingLabel],
+    ["Experience",        expSummary],
+    ["Why recommended",   positives.length ? positives.join(" · ") : "Good overall relevance"],
   ];
 
   return rows
@@ -307,6 +409,199 @@ function matchTier(pct) {
   return "weak";
 }
 
+// ── Vacancy file upload ──────────────────────────────────────────────────────
+
+function setUploadStatus(text, type = "") {
+  uploadStatusEl.textContent = text;
+  uploadStatusEl.className = `upload-status ${type}`.trim();
+}
+
+function showParsedInfo(parsed) {
+  const skills = (parsed.skills || []).slice(0, 8).join(", ");
+  const more   = parsed.skills.length > 8 ? ` +${parsed.skills.length - 8} more` : "";
+  const pages  = parsed.page_count > 1 ? ` · ${parsed.page_count} pages` : "";
+  const warns  = parsed.parse_warnings?.length
+    ? `<br><span style="color:var(--warning)">⚠ ${escapeHtml(parsed.parse_warnings[0])}</span>`
+    : "";
+  uploadParsedInfoEl.innerHTML =
+    `<b>${escapeHtml(parsed.file_name)}</b> · ${parsed.char_count.toLocaleString()} chars${pages}` +
+    (skills ? `<br>skills detected: ${escapeHtml(skills)}${escapeHtml(more)}` : "") +
+    warns;
+  uploadParsedInfoEl.classList.add("visible");
+}
+
+async function handleVacancyFileUpload(file) {
+  if (!file) return;
+  if (!state.authToken) {
+    setUploadStatus("sign in first to use file upload.", "error");
+    return;
+  }
+
+  setUploadStatus("parsing file…", "loading");
+  uploadParsedInfoEl.classList.remove("visible");
+
+  const form = new FormData();
+  form.append("file", file);
+
+  try {
+    const response = await fetch("/vacancies/parse", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${state.authToken}` },
+      body: form,
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setUploadStatus(data.detail || `Parse failed (${response.status})`, "error");
+      return;
+    }
+
+    // Fill in the custom-vacancy form fields
+    if (data.title) {
+      document.getElementById("vacancy-title").value = data.title;
+    }
+    if (data.description) {
+      document.getElementById("vacancy-description").value = data.description;
+    }
+    if (data.years_required != null) {
+      document.getElementById("vacancy-years").value = data.years_required;
+    }
+    if (data.skills && data.skills.length) {
+      document.getElementById("vacancy-skills").value = data.skills.join(", ");
+    }
+
+    setUploadStatus(`filled from ${escapeHtml(file.name)} — review and edit before searching`, "ok");
+    showParsedInfo(data);
+
+    // Switch to the custom tab if not already there
+    if (state.shortlistMode !== "custom") setShortlistMode("custom");
+  } catch (error) {
+    setUploadStatus(error.message || "Upload failed.", "error");
+  }
+}
+
+// Drag-and-drop wiring
+uploadZoneEl.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  uploadZoneEl.classList.add("drag-over");
+});
+uploadZoneEl.addEventListener("dragleave", () => uploadZoneEl.classList.remove("drag-over"));
+uploadZoneEl.addEventListener("drop", (e) => {
+  e.preventDefault();
+  uploadZoneEl.classList.remove("drag-over");
+  const file = e.dataTransfer?.files?.[0];
+  if (file) handleVacancyFileUpload(file);
+});
+vacancyFileInputEl.addEventListener("change", () => {
+  const file = vacancyFileInputEl.files?.[0];
+  if (file) handleVacancyFileUpload(file);
+  vacancyFileInputEl.value = "";   // reset so same file can be re-selected
+});
+
+// ── Feedback ─────────────────────────────────────────────────────────────────
+
+function applyFeedbackToCard(cardEl, decision) {
+  cardEl.querySelectorAll(".fb-btn").forEach((btn) => {
+    const d = btn.dataset.decision;
+    btn.classList.toggle(`is-active-${d}`, d === decision);
+  });
+}
+
+function showCommentBox(cardEl, decision, existingNote = "") {
+  const box = cardEl.querySelector(".fb-comment-box");
+  if (!box) return;
+  // Store which decision is pending on the card element
+  cardEl.dataset.pendingDecision = decision;
+  box.classList.remove("hidden");
+  // Hide the read-only saved-comment view while editing
+  const savedView = cardEl.querySelector(".fb-saved-comment");
+  if (savedView) savedView.classList.add("hidden");
+  const textarea = box.querySelector(".fb-comment-input");
+  if (textarea) {
+    textarea.classList.remove("has-error");
+    textarea.placeholder = "Briefly explain your decision…";
+    if (existingNote && !textarea.value) textarea.value = existingNote;
+    textarea.focus();
+  }
+}
+
+function renderSavedComment(cardEl, note) {
+  const savedView = cardEl.querySelector(".fb-saved-comment");
+  if (!savedView) return;
+  if (note && note.trim()) {
+    savedView.querySelector(".fb-saved-text").textContent = note;
+    savedView.classList.remove("hidden");
+  } else {
+    savedView.classList.add("hidden");
+  }
+}
+
+function hideCommentBox(cardEl) {
+  const box = cardEl.querySelector(".fb-comment-box");
+  if (!box) return;
+  box.classList.add("hidden");
+  const textarea = box.querySelector(".fb-comment-input");
+  if (textarea) {
+    textarea.value = "";
+    textarea.classList.remove("has-error");
+  }
+  delete cardEl.dataset.pendingDecision;
+}
+
+async function submitFeedback(runId, finalRank, decision, note, cardEl) {
+  try {
+    await apiPost(
+      `/shortlist/${encodeURIComponent(runId)}/feedback`,
+      { final_rank: finalRank, decision, note: note || null },
+      { authRequired: true }
+    );
+    state.feedbackByRank[finalRank] = decision;
+    state.noteByRank[finalRank] = note || "";
+    applyFeedbackToCard(cardEl, decision);
+    hideCommentBox(cardEl);
+    renderSavedComment(cardEl, note);
+  } catch (error) {
+    setAppStatus(error.message || "Failed to save decision.", "error");
+  }
+}
+
+async function clearFeedback(runId, finalRank, cardEl) {
+  try {
+    await apiRequest(
+      `/shortlist/${encodeURIComponent(runId)}/feedback/${encodeURIComponent(finalRank)}`,
+      { method: "DELETE" },
+      { authRequired: true }
+    );
+    delete state.feedbackByRank[finalRank];
+    delete state.noteByRank[finalRank];
+    applyFeedbackToCard(cardEl, null);
+    hideCommentBox(cardEl);
+    renderSavedComment(cardEl, "");
+  } catch (error) {
+    setAppStatus(error.message || "Failed to clear decision.", "error");
+  }
+}
+
+async function loadFeedbackForRun(runId) {
+  if (!runId || !state.authToken) return;
+  try {
+    const data = await apiGet(`/shortlist/${encodeURIComponent(runId)}/feedback`, {
+      authRequired: true,
+    });
+    state.feedbackByRank = {};
+    state.noteByRank = {};
+    (data.feedbacks || []).forEach((fb) => {
+      state.feedbackByRank[fb.final_rank] = fb.decision;
+      if (fb.note) state.noteByRank[fb.final_rank] = fb.note;
+    });
+  } catch (_) {
+    state.feedbackByRank = {};
+    state.noteByRank = {};
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function makeAsciiBar(pct, width = 16) {
   const filled = Math.round((pct / 100) * width);
   return "█".repeat(filled) + "─".repeat(width - filled);
@@ -319,7 +614,7 @@ function makeResumeSnippet(text, maxLen = 260) {
   return clean.slice(0, maxLen).trimEnd() + "…";
 }
 
-function renderCandidates(payload) {
+function renderCandidates(payload, runId = null) {
   const candidates = payload.candidates || [];
   resultsEl.innerHTML = "";
 
@@ -336,9 +631,12 @@ function renderCandidates(payload) {
     const fusedScore = candidate.final_fusion_score ?? candidate.score;
     const pct = scoreToPercent(fusedScore);
     const tier = matchTier(pct);
+    const rank = candidate.final_rank;
 
-    node.querySelector(".rank-pill").textContent = `#${candidate.final_rank}`;
-    node.querySelector(".resume-id").textContent = `Candidate ${candidate.resume_id}`;
+    node.querySelector(".rank-pill").textContent = `#${rank}`;
+    // Show short resume ID suffix, not the full raw ID, to keep cards readable
+    const idShort = String(candidate.resume_id).slice(-6);
+    node.querySelector(".resume-id").textContent = `ID ···${idShort}`;
 
     const scoreEl = node.querySelector(".score-fused");
     scoreEl.textContent = `${pct}%`;
@@ -347,17 +645,84 @@ function renderCandidates(payload) {
     else scoreEl.classList.add("badge-danger");
 
     node.querySelector(".score-bar-ascii").textContent = makeAsciiBar(pct);
-
     node.querySelector(".candidate-summary").textContent = buildCandidateSummary(candidate);
     node.querySelector(".resume-snippet-box").textContent = makeResumeSnippet(candidate.resume_text);
+    node.querySelector(".details-grid").innerHTML = renderCandidateDetails(candidate, state.currentJobSkills);
 
-    const detailsEl = node.querySelector(".details-grid");
-    detailsEl.innerHTML = renderCandidateDetails(candidate);
-
-    const resumeBtn = node.querySelector(".view-resume-btn");
-    resumeBtn.addEventListener("click", () => {
+    node.querySelector(".view-resume-btn").addEventListener("click", () => {
       openResumeModal(candidate.resume_id, candidate.resume_text || "");
     });
+
+    // Wire up feedback buttons
+    const cardEl = node.querySelector(".cand-card");
+    const existingDecision = state.feedbackByRank[rank] || null;
+    const existingNote = state.noteByRank[rank] || "";
+    if (existingDecision) applyFeedbackToCard(cardEl, existingDecision);
+    if (existingNote) renderSavedComment(cardEl, existingNote);
+
+    if (runId) {
+      // Decision button: highlight + show comment box (no submit yet)
+      cardEl.querySelectorAll(".fb-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const d = btn.dataset.decision;
+          // Visually highlight the selected option immediately
+          applyFeedbackToCard(cardEl, d);
+          showCommentBox(cardEl, d, state.noteByRank[rank] || "");
+        });
+      });
+
+      // Edit button on the saved-comment view: reopen the comment box pre-filled
+      const editBtn = cardEl.querySelector(".fb-edit-btn");
+      if (editBtn) {
+        editBtn.addEventListener("click", () => {
+          const d = state.feedbackByRank[rank];
+          if (!d) return;
+          showCommentBox(cardEl, d, state.noteByRank[rank] || "");
+        });
+      }
+
+      // Save button: validate comment, then submit
+      const saveBtn = cardEl.querySelector(".fb-save-btn");
+      if (saveBtn) {
+        saveBtn.addEventListener("click", () => {
+          const textarea = cardEl.querySelector(".fb-comment-input");
+          const note = (textarea ? textarea.value : "").trim();
+          if (!note) {
+            if (textarea) textarea.classList.add("has-error");
+            textarea.placeholder = "Comment is required before saving.";
+            textarea.focus();
+            return;
+          }
+          const decision = cardEl.dataset.pendingDecision;
+          if (!decision) return;
+          submitFeedback(runId, rank, decision, note, cardEl);
+        });
+      }
+
+      // Cancel button: revert to previous saved decision, hide box
+      const cancelBtn = cardEl.querySelector(".fb-cancel-btn");
+      if (cancelBtn) {
+        cancelBtn.addEventListener("click", () => {
+          hideCommentBox(cardEl);
+          // Revert button highlights to the last saved decision
+          const saved = state.feedbackByRank[rank] || null;
+          applyFeedbackToCard(cardEl, saved);
+          // Re-show the saved comment block if one exists
+          renderSavedComment(cardEl, state.noteByRank[rank] || "");
+        });
+      }
+
+      // Clear button: delete saved feedback
+      cardEl.querySelector(".fb-clear").addEventListener("click", () =>
+        clearFeedback(runId, rank, cardEl)
+      );
+    } else {
+      // no run_id yet (history replay without live run) — hide feedback bar
+      const bar = cardEl.querySelector(".feedback-bar");
+      if (bar) bar.style.display = "none";
+      const commentBox = cardEl.querySelector(".fb-comment-box");
+      if (commentBox) commentBox.style.display = "none";
+    }
 
     fragment.appendChild(node);
   });
@@ -388,8 +753,14 @@ function mapHistoryDetailToCandidates(detail) {
 async function loadHistoryRun(runId) {
   try {
     setAppStatus("Loading shortlist from history...", "ok");
-    const detail = await apiGet(`/cabinet/history/${encodeURIComponent(runId)}`, { authRequired: true });
+    const [detail] = await Promise.all([
+      apiGet(`/cabinet/history/${encodeURIComponent(runId)}`, { authRequired: true }),
+      loadFeedbackForRun(runId),
+    ]);
+    state.currentRunId = runId;
+
     const mapped = {
+      run_id: runId,
       job_id: detail.existing_job_id || detail.vacancy_title || "custom",
       top_k: detail.top_k,
       retrieved_count: detail.retrieved_count,
@@ -398,7 +769,7 @@ async function loadHistoryRun(runId) {
     };
 
     updateResultsMeta(mapped, "loaded from history");
-    renderCandidates(mapped);
+    renderCandidates(mapped, runId);
     setPage("shortlist");
     setAppStatus("History shortlist loaded.", "ok");
   } catch (error) {
@@ -419,13 +790,13 @@ function renderHistoryList(runs) {
     const item = document.createElement("div");
     item.className = "pipeline-row";
 
-    const label = run.vacancy_title || (run.existing_job_id ? `${run.existing_job_id}` : "Custom vacancy");
+    const label = run.vacancy_title || run.existing_job_id || "Custom vacancy";
     item.innerHTML = `
       <div>
         <div class="pipeline-name">${escapeHtml(label)}</div>
-        <div class="pipeline-sub">${escapeHtml(humanDate(run.created_at))} · ${escapeHtml(String(run.returned_count))} candidates</div>
+        <div class="pipeline-sub">${escapeHtml(humanDate(run.created_at))} · ${escapeHtml(String(run.returned_count))} candidates ranked</div>
       </div>
-      <button type="button" class="btn btn-ghost btn-sm open-history-btn">open</button>
+      <button type="button" class="btn btn-ghost btn-sm open-history-btn">Reopen</button>
     `;
 
     const button = item.querySelector(".open-history-btn");
@@ -462,37 +833,42 @@ function renderVacancyList(vacancies) {
 
 function renderGlobalExplanation(payload) {
   const features = payload.top_features || [];
+
+  // Normalize SHAP values to 0–1 range for bar rendering
+  const maxShap = Math.max(...features.map((f) => numOr(f.mean_abs_shap, 0)), 0.001);
+
   const rows = features
-    .slice(0, 12)
+    .slice(0, 10)
     .map((feature, index) => {
-      const ratio = Math.max(0, Math.min(1, numOr(feature.mean_abs_shap, 0)));
-      const filled = Math.round(ratio * 36);
-      const bar = "█".repeat(filled) + "─".repeat(36 - filled);
+      const ratio = Math.max(0, Math.min(1, numOr(feature.mean_abs_shap, 0) / maxShap));
+      const filled = Math.round(ratio * 32);
+      const bar = "█".repeat(filled) + "─".repeat(32 - filled);
+      const friendlyName = FACTOR_LABELS[feature.feature] || feature.label;
+      const pct = Math.round(ratio * 100);
       return `
         <div class="shap-item">
           <span class="shap-rank">#${index + 1}</span>
           <div class="shap-content">
-            <div class="shap-feature-name">${escapeHtml(feature.label)}</div>
-            <div class="shap-ascii-bar">${escapeHtml(bar)}</div>
-            <div class="shap-meta">mean |SHAP| = ${fmt(feature.mean_abs_shap, 5)} · mean SHAP = ${fmt(feature.mean_shap, 5)}</div>
+            <div class="shap-feature-name">${escapeHtml(friendlyName)}</div>
+            <div class="shap-ascii-bar">${escapeHtml(bar)} ${pct}%</div>
           </div>
         </div>
       `;
     })
     .join("");
 
-  globalShapListEl.innerHTML = rows || "<p class='mono-mute'>No SHAP summary available yet.</p>";
-  globalExplainerMetaEl.textContent = `based on ${payload.validation_rows ?? 0} validation rows`;
+  globalShapListEl.innerHTML = rows || "<p class='mono-mute'>No SHAP data available yet.</p>";
+  globalExplainerMetaEl.textContent = `${payload.validation_rows ?? 0} candidates analyzed`;
 
   const glossary = (payload.feature_glossary || [])
+    .filter((item) => item.used_in_model)
     .map(
       (item) => `
       <div class="pipeline-row">
         <div>
-          <div class="pipeline-name">${escapeHtml(item.label)}</div>
+          <div class="pipeline-name">${escapeHtml(FACTOR_LABELS[item.feature] || item.label)}</div>
           <div class="pipeline-sub">${escapeHtml(item.description)}</div>
         </div>
-        <span class="badge ${item.used_in_model ? "badge-success" : ""}">${item.used_in_model ? "used" : "unused"}</span>
       </div>`
     )
     .join("");
@@ -576,6 +952,7 @@ existingForm.addEventListener("submit", async (event) => {
     setAppStatus("Please pick a vacancy from the suggestions list first.", "error");
     return;
   }
+  showSearchOverlay("Searching candidates…");
   try {
     setAppStatus("Searching candidates and re-ranking with the ML model…", "ok");
     const payload = {
@@ -585,17 +962,25 @@ existingForm.addEventListener("submit", async (event) => {
     };
 
     const data = await apiPost("/shortlist", payload, { authRequired: true });
+    state.currentRunId = data.run_id || null;
+    state.feedbackByRank = {};
+    // Store job skills for matched/missing display in candidate cards
+    const jobObj = state.jobs.find((j) => j.job_id === jobId);
+    state.currentJobSkills = jobObj ? (jobObj.job_skills_norm || []) : [];
     updateResultsMeta(data);
-    renderCandidates(data);
+    renderCandidates(data, state.currentRunId);
     await Promise.all([loadHistory(), loadVacancies()]);
     setAppStatus("Shortlist ready. Open candidate cards for details.", "ok");
   } catch (error) {
     setAppStatus(error.message || "Failed to build shortlist.", "error");
+  } finally {
+    hideSearchOverlay();
   }
 });
 
 customForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  showSearchOverlay("Searching candidates…");
   try {
     setAppStatus("Searching candidates and re-ranking with the ML model…", "ok");
 
@@ -616,13 +1001,18 @@ customForm.addEventListener("submit", async (event) => {
     };
 
     const data = await apiPost("/shortlist/vacancy", payload, { authRequired: true });
-    const extra = data.proxy_job_id ? `proxy: ${data.proxy_job_id}` : "";
-    updateResultsMeta(data, extra);
-    renderCandidates(data);
+    state.currentRunId = data.run_id || null;
+    state.feedbackByRank = {};
+    // For custom vacancies, use skills the user typed in the form
+    state.currentJobSkills = parsedSkills;
+    updateResultsMeta(data, "");
+    renderCandidates(data, state.currentRunId);
     await Promise.all([loadHistory(), loadVacancies()]);
     setAppStatus("Custom vacancy shortlist generated and saved.", "ok");
   } catch (error) {
     setAppStatus(error.message || "Failed to build shortlist.", "error");
+  } finally {
+    hideSearchOverlay();
   }
 });
 

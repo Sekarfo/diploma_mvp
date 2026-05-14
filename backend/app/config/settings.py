@@ -51,6 +51,9 @@ class Settings:
     cross_encoder_model: str
     cross_encoder_max_length: int
     cross_encoder_batch_size: int
+    cross_encoder_cascade_enabled: bool
+    cross_encoder_cascade_top_m: int
+    cross_encoder_cascade_default_score: float
 
     database_url: str
     db_schema_autocreate: bool
@@ -94,6 +97,13 @@ def get_settings() -> Settings:
         ),
         cross_encoder_max_length=int(os.getenv("CROSS_ENCODER_MAX_LENGTH", "512")),
         cross_encoder_batch_size=int(os.getenv("CROSS_ENCODER_BATCH_SIZE", "64")),
+        cross_encoder_cascade_enabled=(
+            os.getenv("CROSS_ENCODER_CASCADE_ENABLED", "true").strip().lower() in _TRUE_VALUES
+        ),
+        cross_encoder_cascade_top_m=int(os.getenv("CROSS_ENCODER_CASCADE_TOP_M", "200")),
+        cross_encoder_cascade_default_score=float(
+            os.getenv("CROSS_ENCODER_CASCADE_DEFAULT_SCORE", "0.0")
+        ),
         database_url=os.getenv(
             "DATABASE_URL",
             "postgresql://postgres:postgres@127.0.0.1:5432/hr_shortlist",

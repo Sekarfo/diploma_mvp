@@ -60,6 +60,12 @@ class AuthService:
         user_id = str(uuid.uuid4())
         password_hash = self._hash_password(password)
 
+        token = secrets.token_urlsafe(48)
+        token_hash = self._hash_token(token)
+        expires_at = now + timedelta(minutes=self.settings.auth_session_ttl_minutes)
+        session_id = str(uuid.uuid4())
+
+        # User creation and session creation must succeed or fail together.
         try:
             with db_connection() as connection:
                 with connection.cursor() as cursor:
@@ -74,16 +80,20 @@ class AuthService:
                         """,
                         (user_id, normalized_email, password_hash, normalized_name, now, now),
                     )
+                    cursor.execute(
+                        """
+                        INSERT INTO user_sessions (
+                            id, user_id, refresh_token_hash, user_agent, ip_address, expires_at, created_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (session_id, user_id, token_hash, user_agent, ip_address, expires_at, now),
+                    )
         except AuthenticationError:
             raise
         except Exception as exc:
             raise DatabaseUnavailableError(f"Sign-up failed: {exc}") from exc
 
-        session = self._create_session(
-            user_id=user_id,
-            user_agent=user_agent,
-            ip_address=ip_address,
-        )
+        session = {"access_token": token, "expires_at": expires_at.isoformat()}
         return {
             "token_type": "bearer",
             "access_token": session["access_token"],
@@ -112,6 +122,12 @@ class AuthService:
             raise AuthenticationError("Password is required.")
 
         now = datetime.now(timezone.utc)
+        token = secrets.token_urlsafe(48)
+        token_hash = self._hash_token(token)
+        expires_at = now + timedelta(minutes=self.settings.auth_session_ttl_minutes)
+        session_id = str(uuid.uuid4())
+
+        
         try:
             with db_connection() as connection:
                 with connection.cursor() as cursor:
@@ -137,27 +153,25 @@ class AuthService:
                         "UPDATE users SET last_login_at = %s, updated_at = %s WHERE id = %s",
                         (now, now, str(user_id)),
                     )
+                    # Best-effort cleanup of stale sessions (inside same connection, no extra round-trip)
+                    cursor.execute(
+                        "DELETE FROM user_sessions WHERE user_id = %s AND expires_at < now() - INTERVAL '7 days'",
+                        (str(user_id),),
+                    )
+                    cursor.execute(
+                        """
+                        INSERT INTO user_sessions (
+                            id, user_id, refresh_token_hash, user_agent, ip_address, expires_at, created_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (session_id, str(user_id), token_hash, user_agent, ip_address, expires_at, now),
+                    )
         except AuthenticationError:
             raise
         except Exception as exc:
             raise DatabaseUnavailableError(f"Sign-in failed: {exc}") from exc
 
-        # Cleanup old expired sessions for this user (best-effort, non-blocking)
-        try:
-            with db_connection() as _conn:
-                with _conn.cursor() as _cur:
-                    _cur.execute(
-                        "DELETE FROM user_sessions WHERE user_id = %s AND expires_at < now() - INTERVAL '7 days'",
-                        (str(user_id),),
-                    )
-        except Exception as _exc:
-            pass  # non-critical; don't fail signin if cleanup fails
-
-        session = self._create_session(
-            user_id=str(user_id),
-            user_agent=user_agent,
-            ip_address=ip_address,
-        )
+        session = {"access_token": token, "expires_at": expires_at.isoformat()}
         return {
             "token_type": "bearer",
             "access_token": session["access_token"],
@@ -229,46 +243,6 @@ class AuthService:
                     )
         except Exception as exc:
             raise DatabaseUnavailableError(f"Sign-out failed: {exc}") from exc
-
-    def _create_session(
-        self,
-        *,
-        user_id: str,
-        user_agent: str | None,
-        ip_address: str | None,
-    ) -> dict[str, str]:
-        token = secrets.token_urlsafe(48)
-        token_hash = self._hash_token(token)
-        now = datetime.now(timezone.utc)
-        expires_at = now + timedelta(minutes=self.settings.auth_session_ttl_minutes)
-        session_id = str(uuid.uuid4())
-
-        try:
-            with db_connection() as connection:
-                with connection.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        INSERT INTO user_sessions (
-                            id, user_id, refresh_token_hash, user_agent, ip_address, expires_at, created_at
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        """,
-                        (
-                            session_id,
-                            user_id,
-                            token_hash,
-                            user_agent,
-                            ip_address,
-                            expires_at,
-                            now,
-                        ),
-                    )
-        except Exception as exc:
-            raise DatabaseUnavailableError(f"Session creation failed: {exc}") from exc
-
-        return {
-            "access_token": token,
-            "expires_at": expires_at.isoformat(),
-        }
 
     @staticmethod
     def _validate_signup_payload(*, email: str, password: str, full_name: str) -> None:

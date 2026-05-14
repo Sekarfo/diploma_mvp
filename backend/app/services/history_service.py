@@ -63,7 +63,7 @@ class HistoryService:
                             id, owner_user_id, source, title, description, years_required,
                             skills_norm, parser_payload, created_at, updated_at
                         ) VALUES (
-                            %s, %s, 'manual', %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s
+                            %s, %s, 'manual', %s, %s, %s, %s, %s::jsonb, %s, %s
                         )
                         """,
                         (
@@ -72,7 +72,7 @@ class HistoryService:
                             title,
                             description,
                             years_required,
-                            json.dumps(skills_norm or []),
+                            list(skills_norm or []),  # text[] column — pass Python list directly
                             json.dumps({}),
                             now,
                             now,
@@ -427,6 +427,176 @@ class HistoryService:
         if isinstance(value, datetime):
             return value.isoformat()
         return str(value)
+
+    # ── Feedback ──────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _validate_uuid(value: str, name: str = "id") -> None:
+        try:
+            uuid.UUID(str(value))
+        except ValueError:
+            raise HistoryNotFoundError(f"Invalid {name}: '{value}'.")
+
+    def submit_feedback(
+        self,
+        *,
+        user_id: str,
+        run_id: str,
+        final_rank: int,
+        decision: str,
+        rating: int | None,
+        note: str | None,
+    ) -> dict[str, Any]:
+        self._validate_uuid(run_id, "run_id")
+        now = datetime.now(timezone.utc)
+        feedback_id = str(uuid.uuid4())
+
+        try:
+            with db_connection() as connection:
+                with connection.cursor() as cursor:
+                    # Verify the run belongs to this user
+                    cursor.execute(
+                        "SELECT id FROM shortlist_runs WHERE id = %s AND user_id = %s",
+                        (run_id, user_id),
+                    )
+                    if cursor.fetchone() is None:
+                        raise HistoryNotFoundError("Shortlist run not found.")
+
+                    # Look up the internal candidate id by rank
+                    cursor.execute(
+                        """
+                        SELECT id, resume_id FROM shortlist_candidates
+                        WHERE run_id = %s AND final_rank = %s
+                        """,
+                        (run_id, final_rank),
+                    )
+                    cand_row = cursor.fetchone()
+                    if cand_row is None:
+                        raise HistoryNotFoundError(
+                            f"Candidate with rank {final_rank} not found in this run."
+                        )
+                    candidate_id, resume_id = cand_row
+
+                    # Upsert: create or update feedback for (user_id, candidate_id)
+                    cursor.execute(
+                        """
+                        INSERT INTO recruiter_feedback (
+                            id, run_id, candidate_id, user_id,
+                            decision, rating, note, created_at, updated_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (user_id, candidate_id) DO UPDATE SET
+                            decision   = EXCLUDED.decision,
+                            rating     = EXCLUDED.rating,
+                            note       = EXCLUDED.note,
+                            updated_at = EXCLUDED.updated_at
+                        RETURNING id, created_at, updated_at
+                        """,
+                        (
+                            feedback_id,
+                            run_id,
+                            candidate_id,
+                            user_id,
+                            decision,
+                            rating,
+                            note,
+                            now,
+                            now,
+                        ),
+                    )
+                    row = cursor.fetchone()
+                    actual_id, created_at, updated_at = row
+        except (HistoryNotFoundError, HistoryPersistenceError):
+            raise
+        except Exception as exc:
+            raise HistoryPersistenceError(f"Failed to persist feedback: {exc}") from exc
+
+        return {
+            "feedback_id": str(actual_id),
+            "run_id": run_id,
+            "final_rank": final_rank,
+            "resume_id": str(resume_id),
+            "decision": decision,
+            "rating": rating,
+            "note": note,
+            "created_at": self._as_iso(created_at),
+            "updated_at": self._as_iso(updated_at),
+        }
+
+    def list_run_feedback(
+        self, *, user_id: str, run_id: str
+    ) -> list[dict[str, Any]]:
+        self._validate_uuid(run_id, "run_id")
+        try:
+            with db_connection() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id FROM shortlist_runs WHERE id = %s AND user_id = %s",
+                        (run_id, user_id),
+                    )
+                    if cursor.fetchone() is None:
+                        raise HistoryNotFoundError("Shortlist run not found.")
+
+                    cursor.execute(
+                        """
+                        SELECT
+                            f.id,
+                            f.decision,
+                            f.rating,
+                            f.note,
+                            f.created_at,
+                            f.updated_at,
+                            c.final_rank,
+                            c.resume_id
+                        FROM recruiter_feedback f
+                        JOIN shortlist_candidates c ON c.id = f.candidate_id
+                        WHERE f.run_id = %s AND f.user_id = %s
+                        ORDER BY c.final_rank ASC
+                        """,
+                        (run_id, user_id),
+                    )
+                    rows = cursor.fetchall()
+        except (HistoryNotFoundError, HistoryPersistenceError):
+            raise
+        except Exception as exc:
+            raise HistoryPersistenceError(f"Failed to load feedback: {exc}") from exc
+
+        return [
+            {
+                "feedback_id": str(row[0]),
+                "decision": str(row[1]),
+                "rating": int(row[2]) if row[2] is not None else None,
+                "note": str(row[3]) if row[3] is not None else None,
+                "created_at": self._as_iso(row[4]),
+                "updated_at": self._as_iso(row[5]),
+                "final_rank": int(row[6]),
+                "resume_id": str(row[7]),
+                "run_id": run_id,
+            }
+            for row in rows
+        ]
+
+    def delete_feedback(self, *, user_id: str, run_id: str, final_rank: int) -> bool:
+        """Remove a feedback entry. Returns True if a row was deleted, False if none existed."""
+        try:
+            with db_connection() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        DELETE FROM recruiter_feedback
+                        WHERE user_id = %s
+                          AND candidate_id = (
+                              SELECT id FROM shortlist_candidates
+                              WHERE run_id = %s AND final_rank = %s
+                              LIMIT 1
+                          )
+                        """,
+                        (user_id, run_id, final_rank),
+                    )
+                    return cursor.rowcount > 0
+        except Exception as exc:
+            raise HistoryPersistenceError(f"Failed to delete feedback: {exc}") from exc
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
 
     @staticmethod
     def _parse_json_column(value: Any) -> Any:
